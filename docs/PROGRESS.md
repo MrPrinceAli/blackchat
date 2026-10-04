@@ -8,7 +8,7 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 | W1 | Protocol | Selesai, merged | #2 → #6 |
 | W2 | Crypto inti | Selesai, merged | #3 → #6 |
 | W3 | Crypto room & pesan | Selesai, merged | #4 → #7 |
-| W4 | Relay: akun & limiter | Belum mulai | — |
+| W4 | Relay: akun & limiter | Selesai, PR terbuka | branch `w4-relay-akun` |
 | W5 | Relay: InboxDO & RoomDO | Belum mulai | — |
 | W6 | Web: fondasi & UI statis | Belum mulai | — |
 | W7 | Web: akun, sesi & koneksi | Belum mulai | — |
@@ -78,3 +78,15 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
   sudah teruji; CI `main` hijau. Pelajaran: untuk PR bertumpuk, jangan `--delete-branch` sebelum PR berikutnya
   dipindah base-nya ke `main`.
 - PR Dependabot #5 (vitest 5) ditutup; Dependabot sekarang mengabaikan versi mayor vitest dan TypeScript.
+
+### 2026-10-05 — W4 Relay: akun & limiter
+- Selesai: semua endpoint PRD §5.2 (`account.ts`), router + CORS + header keamanan (`index.ts`, `http.ts`),
+  verifikasi Ed25519 WebCrypto (`verify.ts`), BLAKE2b `@noble/hashes` (`hash.ts`), LimiterDO 16 shard tanpa storage
+  dengan jeda login per username (`limiter.ts`), cron akun hangus, `InboxDO.destroy()`, route test (`test-routes.ts`).
+- Test: 44 di workerd (`@cloudflare/vitest-pool-workers`), termasuk kompatibilitas relay ↔ libsodium lewat vektor
+  `packages/crypto/test/*.json`. Mutasi manual pada 8 pemeriksaan keamanan: semuanya tertangkap (cek `xPkSig`
+  baru tertangkap setelah test "xPkSig palsu dengan request bertanda tangan sah" ditambahkan).
+- CI: langkah baru `check:bundle` memastikan route test tidak ada di bundle produksi (kontrol negatif terbukti gagal).
+- Keputusan baru: D-012 (kunci limiter dari `SALT_SECRET` mengoreksi D-003; `compatibility_date` 2026-08-22).
+- Tertunda: review & merge PR W4. Relay belum di-deploy (W12, D-005).
+- Langkah manual untuk user: tidak ada untuk W4. Akun Cloudflare + 2FA baru dibutuhkan di W12.

@@ -8,5 +8,6 @@ export interface Env {
   ROOM: DurableObjectNamespace<RoomDO>;
   LIMITER: DurableObjectNamespace<LimiterDO>;
   ALLOWED_ORIGIN: string;
+  /** 32 byte acak dalam hex (wrangler secret). Kunci salt palsu dan kunci limiter (PRD §5.2, D-012). */
   SALT_SECRET: string;
 }
