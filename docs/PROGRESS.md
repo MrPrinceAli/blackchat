@@ -4,10 +4,10 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 
 | Gelombang | Nama | Status | PR |
 |---|---|---|---|
-| W0 | Fondasi monorepo | Selesai (lokal) | branch `w0-fondasi` |
-| W1 | Protocol | Selesai (lokal) | branch `w1-protocol` |
-| W2 | Crypto inti | Selesai (lokal) | branch `w2-crypto-inti` |
-| W3 | Crypto room & pesan | Selesai (lokal) | branch `w3-crypto-room` |
+| W0 | Fondasi monorepo | Selesai, merged | #1 |
+| W1 | Protocol | Selesai, merged | #2 → #6 |
+| W2 | Crypto inti | Selesai, merged | #3 → #6 |
+| W3 | Crypto room & pesan | Selesai, merged | #4 → #7 |
 | W4 | Relay: akun & limiter | Belum mulai | — |
 | W5 | Relay: InboxDO & RoomDO | Belum mulai | — |
 | W6 | Web: fondasi & UI statis | Belum mulai | — |
@@ -67,5 +67,14 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
   `test/vectors-room.json` untuk relay W5. Mutasi manual pada 5 pemeriksaan keamanan: semuanya tertangkap
   (satu baru tertangkap setelah test "Inner dibungkus ulang" ditambahkan).
 - Keputusan baru: D-011.
-- Tertunda: push & PR untuk W0–W3; CI belum pernah jalan di GitHub.
-- Langkah manual untuk user: buat repo GitHub `blackchat` lalu izinkan push (lihat laporan).
+- Tertunda: —
+
+### 2026-10-05 — Push, CI, dan merge W0–W3
+- Repo private `MrPrinceAli/blackchat` dibuat; W0–W3 di-push sebagai PR bertumpuk #1–#4, CI hijau semua.
+- CI awalnya tidak terpicu karena PR dibuka sebelum Actions pertama kali aktif di repo baru; buka-tutup PR memicunya.
+- Test gambar W3 timeout di runner CI (data acak 1,5 MB lewat WASM lambat): data uji diganti `node:crypto`, timeout 30 dtk.
+- Merge: #1 masuk `main`. Menghapus branch base `w0-fondasi` menutup PR #2 otomatis, dan #3 ter-merge ke
+  `w1-protocol`. Dipulihkan tanpa force-push lewat #6 (W1+W2) dan #7 (W3). Tree `main` identik dengan W3 yang
+  sudah teruji; CI `main` hijau. Pelajaran: untuk PR bertumpuk, jangan `--delete-branch` sebelum PR berikutnya
+  dipindah base-nya ke `main`.
+- PR Dependabot #5 (vitest 5) ditutup; Dependabot sekarang mengabaikan versi mayor vitest dan TypeScript.

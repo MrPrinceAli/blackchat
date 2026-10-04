@@ -6,6 +6,13 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     versioning-strategy: increase
+    ignore:
+      # @cloudflare/vitest-pool-workers hanya mendukung vitest 4.x (README, bagian Dependensi).
+      - dependency-name: vitest
+        update-types: ['version-update:semver-major']
+      # typescript-eslint belum mendukung TypeScript 7.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
