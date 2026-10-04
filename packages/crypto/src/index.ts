@@ -31,3 +31,33 @@ export {
 export { openVault, sealVault } from './vault.js';
 export { openContacts, sealContacts } from './contacts.js';
 export { safetyNumber } from './safety.js';
+export {
+  deriveRoom,
+  memberProof,
+  memberTagFor,
+  opHash,
+  roomAuth,
+  verifyMemberProof,
+  wipeRoomKeys,
+  type RoomKeys,
+} from './room.js';
+export { openHeader, sealHeader } from './header.js';
+export {
+  decryptMessage,
+  effectiveTtl,
+  encryptMessage,
+  messageAad,
+  newContentKey,
+  signInner,
+  verifyInner,
+  type DecryptedMessage,
+  type EncryptedMessage,
+  type InnerExpectation,
+} from './message.js';
+export {
+  decryptImage,
+  encryptImage,
+  imageChunkAad,
+  imageHash,
+  type EncryptedImage,
+} from './image.js';

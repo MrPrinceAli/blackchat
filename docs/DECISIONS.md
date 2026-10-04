@@ -81,3 +81,14 @@ Safety number tetap persis PRD §4.4 (tanpa label).
 - **Safety number:** hash 256-bit dibaca sebagai bilangan big-endian, diambil `mod 10^60`, di-pad nol ke 60 digit, dipecah 12 × 5. Bias modulo diabaikan (2^256 ≫ 10^60).
 - **Vektor uji** (`packages/crypto/test/vectors.json`) dibuat oleh `test/vectors.gen.mjs` yang memanggil libsodium langsung tanpa kode `src/`, lalu diperiksa silang dengan `@noble/hashes` (Argon2id, BLAKE2b) dan `node:crypto` (Ed25519).
 **Konsekuensi:** Mengubah salah satu poin di atas memutus login akun yang sudah ada dan wajib entri D baru + regenerasi vektor.
+
+## D-011 — Detail kripto room & pesan (2026-10-04)
+**Konteks:** PRD §4.5–§4.7 menulis AAD sebagai `"bc-msg-v1" || roomId || msgId` tanpa menetapkan encoding, dan tidak menyebut pemeriksaan untuk kunci lawan yang tidak valid atau header yang tidak konsisten.
+**Keputusan:**
+- **AAD memakai byte mentah**, bukan string: body = `utf8("bc-msg-v1") || roomId(32 byte) || msgId(16 byte)`, chunk = `utf8("bc-img-v1") || roomId(32) || msgId(16) || u32be(index)`. Panjang tetap, jadi tidak ambigu.
+- **Plaintext pesan** = `canonical(Inner)` lalu `sodium_pad` 256. Tanda tangan Inner = `Ed25519(edSk, utf8("bc-inner-v1" + canonical(Inner tanpa sig)))`.
+- **`deriveRoom` menolak** kunci publik X25519 berorde rendah (hasil DH nol) dan room dengan edPk sendiri.
+- **`openHeader` memeriksa konsistensi** header: `peerUserId` harus sama dengan `userId` dari `peerEdPk`, dan `peerXPkSig` harus valid. Header palsu ditolak walaupun berhasil didekripsi.
+- **`decryptMessage` menerapkan aturan PRD §4.7** di dalam satu fungsi: pengirim yang diharapkan (lawan untuk pesan masuk, diri sendiri untuk pesan sendiri), `roomId`/`msgId` di Inner harus sama dengan record. Pemeriksaan ini tetap perlu walaupun AAD sudah mengikat keduanya, karena pengirim curang bisa membungkus ulang Inner sah dari room lain dengan AAD yang benar (ada test-nya).
+- **Vektor room** (`packages/crypto/test/vectors-room.json`) dibuat oleh generator independen dan menjadi acuan relay di W5 untuk memverifikasi bukti member dengan `@noble/hashes` (D-007).
+**Konsekuensi:** Lima pemeriksaan keamanan utama diuji dengan mutasi manual (pemeriksaan dihapus → test gagal): pengirim Inner, roomId/msgId Inner, hash gambar, userId header, dan pemisahan inboxRoomId (D-001).

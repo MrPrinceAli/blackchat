@@ -7,7 +7,7 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 | W0 | Fondasi monorepo | Selesai (lokal) | branch `w0-fondasi` |
 | W1 | Protocol | Selesai (lokal) | branch `w1-protocol` |
 | W2 | Crypto inti | Selesai (lokal) | branch `w2-crypto-inti` |
-| W3 | Crypto room & pesan | Belum mulai | — |
+| W3 | Crypto room & pesan | Selesai (lokal) | branch `w3-crypto-room` |
 | W4 | Relay: akun & limiter | Belum mulai | — |
 | W5 | Relay: InboxDO & RoomDO | Belum mulai | — |
 | W6 | Web: fondasi & UI statis | Belum mulai | — |
@@ -57,3 +57,15 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 - Durasi Argon2id (64 MiB, t=3) di Node 22 WASM, Apple Silicon: ±120 ms. Diukur ulang di browser pada W7.
 - Keputusan baru: D-010.
 - Tertunda: push & PR.
+
+### 2026-10-04 — W3 Crypto room & pesan
+- Selesai: `room.ts` (shared, roomId, inboxRoomId per anggota D-001, memberKey/Tag, opHash, proof, roomAuth),
+  `header.ts` (header tersegel 560 byte tetap, cek konsistensi), `message.ts` (signInner, verifyInner,
+  encryptMessage/decryptMessage dengan keyForPeer/keyForSelf, effectiveTtl), `image.ts` (chunk 256 KB identik,
+  AAD per index, cek hash).
+- Test: 64 di packages/crypto (30 baru untuk room/pesan/gambar), termasuk vektor independen
+  `test/vectors-room.json` untuk relay W5. Mutasi manual pada 5 pemeriksaan keamanan: semuanya tertangkap
+  (satu baru tertangkap setelah test "Inner dibungkus ulang" ditambahkan).
+- Keputusan baru: D-011.
+- Tertunda: push & PR untuk W0–W3; CI belum pernah jalan di GitHub.
+- Langkah manual untuk user: buat repo GitHub `blackchat` lalu izinkan push (lihat laporan).
