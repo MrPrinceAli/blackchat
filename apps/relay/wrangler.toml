@@ -1,0 +1,62 @@
+name = "blackchat-relay"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+send_metrics = false
+
+# Kode khusus test dibuang dari bundle produksi (D-006).
+define = { __BC_TEST__ = "false" }
+
+[observability]
+enabled = false
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[[durable_objects.bindings]]
+name = "INBOX"
+class_name = "InboxDO"
+
+[[durable_objects.bindings]]
+name = "ROOM"
+class_name = "RoomDO"
+
+[[durable_objects.bindings]]
+name = "LIMITER"
+class_name = "LimiterDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["InboxDO", "RoomDO", "LimiterDO"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "blackchat"
+database_id = "ISI_SETELAH_wrangler_d1_create"
+
+[vars]
+ALLOWED_ORIGIN = "https://blackchat.vercel.app"
+
+# Lingkungan dev lokal & test (D-005, D-006). Binding tidak diwariskan antar-env di wrangler,
+# jadi diulang di sini.
+[env.test]
+define = { __BC_TEST__ = "true" }
+
+[[env.test.durable_objects.bindings]]
+name = "INBOX"
+class_name = "InboxDO"
+
+[[env.test.durable_objects.bindings]]
+name = "ROOM"
+class_name = "RoomDO"
+
+[[env.test.durable_objects.bindings]]
+name = "LIMITER"
+class_name = "LimiterDO"
+
+[[env.test.d1_databases]]
+binding = "DB"
+database_name = "blackchat"
+database_id = "blackchat-local"
+
+[env.test.vars]
+ALLOWED_ORIGIN = "http://localhost:5173"

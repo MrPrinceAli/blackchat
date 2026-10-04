@@ -1,0 +1,33 @@
+{
+  "name": "blackchat",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @blackchat/web --filter @blackchat/relay dev",
+    "build": "pnpm -r build",
+    "lint": "eslint . && node tooling/check-lint-rules.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:relay": "pnpm --filter @blackchat/relay test",
+    "test:e2e": "echo \"TODO(W7): Playwright E2E\"",
+    "check:inline": "echo \"TODO(W6): check dist/index.html for inline script/style\""
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.12.0",
+    "eslint-plugin-svelte": "3.23.0",
+    "globals": "17.13.0",
+    "prettier": "3.9.9",
+    "prettier-plugin-svelte": "4.1.1",
+    "svelte": "5.57.1",
+    "svelte-eslint-parser": "1.8.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.0"
+  }
+}
