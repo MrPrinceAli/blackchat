@@ -44,3 +44,15 @@ Jika bertentangan dengan `BLACKCHAT_PRD.md`, **dokumen ini yang berlaku**. Entri
 **Konteks:** Relay butuh BLAKE2b keyed untuk salt palsu (PRD §5.2), kunci LimiterDO (PRD §6.4), dan verifikasi member proof (PRD §4.6). WebCrypto tidak menyediakan BLAKE2b. `libsodium-wrappers-sumo` memuat WASM dari byte saat runtime, padahal Workers melarang kompilasi WASM dari byte arbitrer, dan ukurannya besar untuk Worker gratis. PRD §12 aturan 12 hanya menyebut libsodium / WebCrypto.
 **Keputusan:** Relay memakai `@noble/hashes` (pustaka teruji dan diaudit, pure JS, versi dipin) khusus untuk BLAKE2b. Ed25519 dan SHA-256 tetap WebCrypto. Client tetap libsodium. Fungsi BLAKE2b relay dibungkus di `apps/relay/src/hash.ts`.
 **Konsekuensi:** Ada dua implementasi BLAKE2b (client & relay), jadi wajib ada test kompatibilitas: vektor dari `@blackchat/crypto` (libsodium) harus menghasilkan output identik di `hash.ts` (keyed & unkeyed, panjang 16/20/32 byte). Alasan dependensi dicatat di README.
+
+## D-008 — Label domain separation tambahan (2026-10-04)
+**Konteks:** PRD §4.1 meminta semua label `bc-...-v1` ada di `constants.ts`, tetapi beberapa operasi di PRD tidak menyebut labelnya, dan PRD §6.1 memakai ulang `bc-auth-v1` (label turunan `authKey` di §4.3) sebagai awalan pesan challenge WebSocket.
+**Keputusan:** Setiap tujuan punya label sendiri:
+- `bc-ws-auth-v1` untuk challenge WebSocket (menggantikan `bc-auth-v1` di PRD §6.1).
+- `bc-inner-v1` sebagai awalan tanda tangan `Inner` (PRD §4.7).
+- `bc-vault-blob-v1` dan `bc-contacts-v1` sebagai AAD AEAD vault dan blob kontak.
+- `bc-op-v1` sebagai awalan `opHash`.
+- `bc-fake-salt-v1`, `bc-limit-ip-v1`, `bc-limit-user-v1` untuk turunan khusus relay.
+- `bc-req-{register,contacts,password,delete}-v1` untuk request akun bertanda tangan (PRD §5.2).
+Safety number tetap persis PRD §4.4 (tanpa label).
+**Konsekuensi:** Tidak ada satu label pun yang dipakai untuk dua tujuan; test `constants.test.ts` memastikan semua label unik. Ukuran dan label di `packages/protocol/src/constants.ts` adalah satu-satunya sumber nilai.

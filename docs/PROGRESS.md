@@ -4,7 +4,7 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 
 | Gelombang | Nama | Status | PR |
 |---|---|---|---|
-| W0 | Fondasi monorepo | Belum mulai | — |
+| W0 | Fondasi monorepo | Selesai (lokal) | branch `w0-fondasi` |
 | W1 | Protocol | Belum mulai | — |
 | W2 | Crypto inti | Belum mulai | — |
 | W3 | Crypto room & pesan | Belum mulai | — |
@@ -26,3 +26,14 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 - Selesai: `CLAUDE.md`, `docs/BLACKCHAT-WAVES.md`, `docs/DECISIONS.md` (D-001 s.d. D-007).
 - Tertunda: semua gelombang.
 - Langkah manual untuk user: lihat "Langkah manual" di W0 sebelum mulai.
+
+### 2026-10-04 — W0 Fondasi monorepo
+- Selesai: monorepo pnpm 9 (`apps/web`, `apps/relay`, `packages/protocol`, `packages/crypto`), TypeScript 6 strict
+  (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`), ESLint dengan aturan PRD §12 + `tooling/check-lint-rules.js`
+  (22 kasus: pelanggaran ditolak, pengecualian sah lolos), Prettier, Vitest 4, `constants.ts` lengkap,
+  `wrangler.toml` (+ `env.test`, `send_metrics = false`), migrasi D1, `clock.ts` (D-006), CI dengan action dipin SHA,
+  Dependabot, README dengan tabel dependensi.
+- Keputusan baru: D-008 (label domain separation tambahan).
+- Gerbang lokal: install, format:check, lint, typecheck, test (4 paket), build — semua hijau.
+- Tertunda: push & PR (repo GitHub belum dibuat); CI belum pernah jalan di GitHub.
+- Langkah manual untuk user: buat repo `blackchat` di GitHub; aktifkan 2FA.

@@ -1,0 +1,3 @@
+# Salin ke .dev.vars untuk wrangler dev. Produksi: wrangler secret put SALT_SECRET
+# Buat dengan: openssl rand -hex 32
+SALT_SECRET=
