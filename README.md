@@ -62,6 +62,7 @@ Semua versi dipin persis (`.npmrc` `save-exact=true`). Dependensi baru wajib dit
 |---|---|
 | `typescript` | Typecheck strict seluruh monorepo |
 | `vite`, `@sveltejs/vite-plugin-svelte`, `svelte-check` | Build dan typecheck SPA |
+| `@types/node` | Tipe Node khusus untuk file test (kode `src` tidak boleh memakai API Node) |
 | `vitest` | Test unit semua paket. Dipin di 4.x karena `@cloudflare/vitest-pool-workers` (W4) membutuhkan vitest 4 |
 | `wrangler`, `@cloudflare/workers-types` | Dev lokal, build, dan deploy relay |
 | `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-svelte`, `svelte-eslint-parser`, `globals` | Lint dengan aturan wajib PRD §12 |

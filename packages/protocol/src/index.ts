@@ -2,3 +2,4 @@ export * from './constants.js';
 export * from './types.js';
 export * from './encoding.js';
 export * from './validate.js';
+export * from './frames.js';

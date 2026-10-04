@@ -103,6 +103,20 @@ export const SIZES = {
   SAFETY_HASH: 32,
 } as const;
 
+/** Format AEAD di wire: nonce(24) || ciphertext || tag(16). */
+export const AEAD_OVERHEAD = SIZES.AEAD_NONCE + SIZES.AEAD_TAG;
+/** crypto_box_seal atas kunci konten 32 byte. */
+export const SEALED_KEY_BYTES = SIZES.SEAL_OVERHEAD + SIZES.CONTENT_KEY;
+/** Vault = AEAD(vaultKey, edSk || xSk). */
+export const VAULT_BYTES = AEAD_OVERHEAD + SIZES.ED_SK + SIZES.X_SK;
+
+/** Header room tersegel (PRD §6.1): plaintext di-pad ke kelipatan PAD_BLOCK agar panjang username tidak bocor. */
+export const HEADER = {
+  PAD_BLOCK: 512,
+  /** Header yang lebih besar dari satu blok ditolak. */
+  SEALED_BYTES: SIZES.SEAL_OVERHEAD + 512,
+} as const;
+
 /** Argon2id — D-002 (menggantikan MODERATE di PRD §4.1). */
 export const ARGON2 = {
   OPSLIMIT: 3,
@@ -144,6 +158,10 @@ export const MESSAGE = {
   VIEW_THRESHOLD: 0.5,
   /** Tekan lama untuk menu konteks — PRD §7.4. */
   LONG_PRESS_MS: 500,
+  /** Body pesan terenkripsi maksimal: AEAD_OVERHEAD + BODY_MAX_PAD_BLOCKS × TEXT_PAD_BLOCK. */
+  BODY_MAX_PAD_BLOCKS: 64,
+  /** room.opened membawa paling banyak sekian msgId (client normalnya mengirim satu, PRD §7.2). */
+  OPENED_MAX_IDS: 10,
 } as const;
 
 export type Ttl = (typeof MESSAGE.TTL_OPTIONS)[number];
@@ -164,14 +182,16 @@ export const IMAGE = {
   UPLOAD_CONCURRENCY: 2,
 } as const;
 
-/** Chunk terenkripsi = CHUNK_BYTES + tag AEAD. Semua chunk identik ukurannya. */
-export const IMAGE_CIPHER_CHUNK_BYTES = IMAGE.CHUNK_BYTES + SIZES.AEAD_TAG;
+/** Chunk terenkripsi = nonce + CHUNK_BYTES + tag AEAD. Semua chunk identik ukurannya (PRD §4.5). */
+export const IMAGE_CIPHER_CHUNK_BYTES = AEAD_OVERHEAD + IMAGE.CHUNK_BYTES;
 /** sodium_pad selalu menambah ≥ 1 byte, jadi gambar OUTPUT_MAX_BYTES bisa butuh satu chunk tambahan. */
 export const IMAGE_MAX_CHUNKS = Math.ceil((IMAGE.OUTPUT_MAX_BYTES + 1) / IMAGE.CHUNK_BYTES);
 
 export const CONTACTS = {
   /** Blob kontak di-pad ke kelipatan 4 KB — PRD §4.8. */
   PAD_BLOCK: 4 * KIB,
+  /** Blob kontak maksimal 8 blok (32 KiB plaintext). */
+  MAX_PAD_BLOCKS: 8,
 } as const;
 
 export const LIMITS = {
@@ -241,7 +261,12 @@ export const BINARY_FRAME = {
   TYPE_CHUNK: 0x01,
   /** [tipe 1][msgId 16][idx 4][panjang header 2] */
   PREFIX_BYTES: 1 + SIZES.MSG_ID + 4 + 2,
+  /** Header JSON {reqId, op, auth} maksimal. */
+  HEADER_MAX_BYTES: 1024,
 } as const;
+
+/** reqId frame WS: bilangan bulat 1 … 2^31 − 1. */
+export const REQ_ID_MAX = 2 ** 31 - 1;
 
 /** Kode error yang dikirim relay ke client. */
 export const ERRORS = {

@@ -56,3 +56,17 @@ Jika bertentangan dengan `BLACKCHAT_PRD.md`, **dokumen ini yang berlaku**. Entri
 - `bc-req-{register,contacts,password,delete}-v1` untuk request akun bertanda tangan (PRD §5.2).
 Safety number tetap persis PRD §4.4 (tanpa label).
 **Konsekuensi:** Tidak ada satu label pun yang dipakai untuk dua tujuan; test `constants.test.ts` memastikan semua label unik. Ukuran dan label di `packages/protocol/src/constants.ts` adalah satu-satunya sumber nilai.
+
+## D-009 — Format wire protokol (2026-10-04)
+**Konteks:** PRD §5.2 dan §6.5 menyebut frame dan endpoint, tetapi tidak menetapkan encoding, cakupan bukti member, atau bentuk `result`.
+**Keputusan:**
+- **Encoding:** base64url tanpa padding untuk nilai biner, hex huruf kecil untuk `roomId`/`inboxRoomId`/`memberTag`, base32 Crockford huruf besar untuk `userId`. Semua decoder hanya menerima bentuk kanonik (satu nilai = satu string). AEAD di wire = `nonce(24) || ciphertext || tag(16)`.
+- **Frame room** berbentuk `{t, reqId, op, auth, ...route}`. `op` adalah objek yang diverifikasi RoomDO; `auth = {memberTag, opNonce, proof}` mencakup **hanya** `opHash = BLAKE2b-256(bc-op-v1 || canonical(op))`. Field routing (`peerUserId`, `peerInboxRoomId`, `myInboxRoomId`, header tersegel) hanya untuk InboxDO dan tidak masuk bukti.
+- **Handshake WS:** server mengirim `{t:"challenge", nonce}`, client menjawab `{t:"auth", sig}`, server membalas `{t:"ready", remainingMs}`. `ping` tanpa `reqId` agar cocok dengan `setWebSocketAutoResponse`.
+- **Header tersegel** di-pad ke 512 byte sebelum disegel (selalu 560 byte), supaya panjang username tidak bocor.
+- **Hasil sync** hanya membawa satu kunci per pesan (`key` = `keyForSelf` jika `mine`, selain itu `keyForPeer`).
+- **`room.ttl` accept/reject** membawa nilai ttl yang dijawab, agar tidak menyetujui usulan yang sudah berganti.
+- **Event** ke client memakai `inboxRoomId` milik penerima (D-001). Payload dibuat oleh InboxDO dari hasil operasi, bukan diteruskan dari client.
+- **`room.getChunk`** dibalas dengan `result` JSON berisi chunk base64url (bukan frame biner kedua). Upload tetap frame biner PRD §13.2, dan relay menolak data chunk yang tidak tepat `IMAGE_CIPHER_CHUNK_BYTES`.
+- Request akun bertanda tangan (`contacts`, `password`, `DELETE`) membawa `userId` agar server bisa menemukan akun dan kunci verifikasinya.
+**Konsekuensi:** Tipe di `packages/protocol/src/types.ts`, validator di `validate.ts`, frame biner di `frames.ts`. Perubahan format setelah ini wajib entri D baru.
