@@ -6,7 +6,7 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 |---|---|---|---|
 | W0 | Fondasi monorepo | Selesai (lokal) | branch `w0-fondasi` |
 | W1 | Protocol | Selesai (lokal) | branch `w1-protocol` |
-| W2 | Crypto inti | Belum mulai | — |
+| W2 | Crypto inti | Selesai (lokal) | branch `w2-crypto-inti` |
 | W3 | Crypto room & pesan | Belum mulai | — |
 | W4 | Relay: akun & limiter | Belum mulai | — |
 | W5 | Relay: InboxDO & RoomDO | Belum mulai | — |
@@ -46,4 +46,14 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 - Test: 673 (suite mutasi otomatis untuk 55 contoh valid + test semantik + vektor RFC 4648).
   Test menemukan bug: field asing `__proto__` lolos karena operator `in`; diperbaiki dengan `Object.hasOwn`.
 - Keputusan baru: D-009 (format wire).
+- Tertunda: push & PR.
+
+### 2026-10-04 — W2 Crypto inti
+- Selesai: `sodium.ts` (ready() sekali), `keys.ts` (identitas, userId, xPkSig, tanda tangan request & challenge WS),
+  `pwhash.ts` (Argon2id D-002, NFC, kebijakan password), `aead.ts`, `seal.ts`, `pad.ts`, `vault.ts`, `contacts.ts`,
+  `safety.ts`, `ids.ts`, `bytes.ts` (equalBytes constant-time, wipe).
+- Test: 34, termasuk vektor tetap dari generator independen (libsodium mentah) dan pemeriksaan silang dengan
+  `@noble/hashes` (Argon2id, BLAKE2b) serta `node:crypto` (Ed25519).
+- Durasi Argon2id (64 MiB, t=3) di Node 22 WASM, Apple Silicon: ±120 ms. Diukur ulang di browser pada W7.
+- Keputusan baru: D-010.
 - Tertunda: push & PR.

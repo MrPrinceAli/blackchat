@@ -53,7 +53,7 @@ Semua versi dipin persis (`.npmrc` `save-exact=true`). Dependensi baru wajib dit
 
 | Paket | Dipakai di | Alasan |
 |---|---|---|
-| `libsodium-wrappers-sumo` | packages/crypto | Semua primitif kripto client. Varian sumo dibutuhkan untuk Argon2id (PRD §2.3) |
+| `libsodium-wrappers-sumo` | packages/crypto | Semua primitif kripto client. Varian sumo dibutuhkan untuk Argon2id (PRD §2.3). Membawa tipe TypeScript sendiri |
 | `svelte` | apps/web | Framework UI, output statis tanpa inline script (CSP ketat) |
 
 ### Pengembangan
@@ -62,8 +62,13 @@ Semua versi dipin persis (`.npmrc` `save-exact=true`). Dependensi baru wajib dit
 |---|---|
 | `typescript` | Typecheck strict seluruh monorepo |
 | `vite`, `@sveltejs/vite-plugin-svelte`, `svelte-check` | Build dan typecheck SPA |
+| `@noble/hashes` | Test packages/crypto: pemeriksaan silang Argon2id & BLAKE2b dengan implementasi independen. Di W4 juga jadi dependensi runtime relay untuk BLAKE2b (D-007) |
 | `@types/node` | Tipe Node khusus untuk file test (kode `src` tidak boleh memakai API Node) |
 | `vitest` | Test unit semua paket. Dipin di 4.x karena `@cloudflare/vitest-pool-workers` (W4) membutuhkan vitest 4 |
 | `wrangler`, `@cloudflare/workers-types` | Dev lokal, build, dan deploy relay |
 | `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-svelte`, `svelte-eslint-parser`, `globals` | Lint dengan aturan wajib PRD §12 |
 | `prettier`, `prettier-plugin-svelte` | Format kode konsisten |
+
+## Atribusi
+
+- Daftar password umum di `packages/crypto/src/common-passwords.ts` diturunkan dari [SecLists](https://github.com/danielmiessler/SecLists) (MIT, © Daniel Miessler). Lihat D-010.

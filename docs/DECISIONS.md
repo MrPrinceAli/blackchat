@@ -70,3 +70,14 @@ Safety number tetap persis PRD §4.4 (tanpa label).
 - **`room.getChunk`** dibalas dengan `result` JSON berisi chunk base64url (bukan frame biner kedua). Upload tetap frame biner PRD §13.2, dan relay menolak data chunk yang tidak tepat `IMAGE_CIPHER_CHUNK_BYTES`.
 - Request akun bertanda tangan (`contacts`, `password`, `DELETE`) membawa `userId` agar server bisa menemukan akun dan kunci verifikasinya.
 **Konsekuensi:** Tipe di `packages/protocol/src/types.ts`, validator di `validate.ts`, frame biner di `frames.ts`. Perubahan format setelah ini wajib entri D baru.
+
+## D-010 — Detail kripto inti (2026-10-04)
+**Konteks:** PRD §4.2–§4.4 dan §4.8 tidak menetapkan beberapa detail yang memengaruhi kompatibilitas.
+**Keputusan:**
+- **Password dinormalisasi NFC** sebelum Argon2id dan sebelum cek kebijakan, supaya password yang sama diketik di perangkat/keyboard berbeda (é tersusun vs é terurai) menghasilkan kunci yang sama.
+- **Daftar password umum:** PRD meminta "1.000 password paling umum". Karena password < 10 karakter sudah ditolak, dari top-1.000 hanya 12 entri yang relevan. Dipakai SecLists `xato-net-10-million-passwords-10000.txt` (MIT), hanya entri ≥ 10 karakter, huruf kecil, tanpa duplikat (145 entri, ±1,7 KB) di `packages/crypto/src/common-passwords.ts`. Perbandingan tidak peka huruf besar/kecil.
+- **Vault** berisi `edSk(64) || xSk(32)`; kunci publik diturunkan ulang dari kunci rahasia saat login (`identityFromSecretKeys`).
+- **Identitas** dibuat dari dua seed acak 32 byte (`crypto_sign_seed_keypair`, `crypto_box_seed_keypair`), jalur kode yang sama dengan vektor uji.
+- **Safety number:** hash 256-bit dibaca sebagai bilangan big-endian, diambil `mod 10^60`, di-pad nol ke 60 digit, dipecah 12 × 5. Bias modulo diabaikan (2^256 ≫ 10^60).
+- **Vektor uji** (`packages/crypto/test/vectors.json`) dibuat oleh `test/vectors.gen.mjs` yang memanggil libsodium langsung tanpa kode `src/`, lalu diperiksa silang dengan `@noble/hashes` (Argon2id, BLAKE2b) dan `node:crypto` (Ed25519).
+**Konsekuensi:** Mengubah salah satu poin di atas memutus login akun yang sudah ada dan wajib entri D baru + regenerasi vektor.
