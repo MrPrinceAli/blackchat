@@ -16,6 +16,7 @@ import {
   type RoomHeader,
   type SendOp,
 } from '@blackchat/protocol';
+import { randomBytes as nodeRandomBytes } from 'node:crypto';
 import sodiumModule from 'libsodium-wrappers-sumo';
 import { describe, expect, it } from 'vitest';
 import {
@@ -383,9 +384,10 @@ describe('pesan (PRD §4.5, §4.7)', () => {
   });
 });
 
-describe('gambar (PRD §4.5 langkah 3)', () => {
+describe('gambar (PRD §4.5 langkah 3)', { timeout: 30_000 }, () => {
   const r = roomOf(alice, bob);
-  const random = (n: number): Uint8Array => sodiumModule.randombytes_buf(n);
+  // Data uji dari node:crypto: randombytes_buf WASM untuk MB-an data lambat di runner CI.
+  const random = (n: number): Uint8Array => new Uint8Array(nodeRandomBytes(n));
 
   it('semua chunk berukuran identik untuk gambar kecil maupun besar', () => {
     const key = newContentKey();
