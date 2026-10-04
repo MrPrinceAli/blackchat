@@ -92,9 +92,9 @@ importers:
         specifier: 0.8.4
         version: 0.8.4
     devDependencies:
-      '@types/libsodium-wrappers-sumo':
-        specifier: 0.8.2
-        version: 0.8.2
+      '@noble/hashes':
+        specifier: 2.4.0
+        version: 2.4.0
       '@types/node':
         specifier: 22.20.5
         version: 22.20.5
@@ -561,6 +561,10 @@ packages:
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
 
+  '@noble/hashes@2.4.0':
+    resolution: {integrity: sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA==}
+    engines: {node: '>= 20.19.0'}
+
   '@oxc-project/types@0.152.0':
     resolution: {integrity: sha512-oM/5rLBm2tPkg0iBgkH/FOeR3PCDpY19GTgAZjMFM8h9WI9VW7cLgzp6nwtarYKmovavIQZ+Fe/RKX/8C8O/Rw==}
 
@@ -706,10 +710,6 @@ packages:
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
-
-  '@types/libsodium-wrappers-sumo@0.8.2':
-    resolution: {integrity: sha512-uFOBpg/r21hExVlh2ty8YpDfSR+Yy3Jn8XS4+SSjitbhTxdYq+pBz/49XRxyUFe8SzqujHf/Wu0/O4d+FUtNfQ==}
-    deprecated: This is a stub types definition. libsodium-wrappers-sumo provides its own type definitions, so you do not need this installed.
 
   '@types/node@22.20.5':
     resolution: {integrity: sha512-U2+DNr+wSjpsTS/wZGYHq7GcwfuSmKiKvoPvK22zwTlRhU91yOniN4qRR5KhIjvif7ysw/dz/hKmfDH0Ris4aA==}
@@ -1895,6 +1895,8 @@ snapshots:
 
   '@keyv/serialize@1.1.1': {}
 
+  '@noble/hashes@2.4.0': {}
+
   '@oxc-project/types@0.152.0': {}
 
   '@poppinss/colors@4.1.6':
@@ -1989,10 +1991,6 @@ snapshots:
   '@types/estree@1.0.9': {}
 
   '@types/json-schema@7.0.15': {}
-
-  '@types/libsodium-wrappers-sumo@0.8.2':
-    dependencies:
-      libsodium-wrappers-sumo: 0.8.4
 
   '@types/node@22.20.5':
     dependencies:
