@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p test/tsconfig.json",
     "test": "vitest run"
   },
   "dependencies": {
@@ -15,7 +15,8 @@
     "libsodium-wrappers-sumo": "0.8.4"
   },
   "devDependencies": {
-    "@types/libsodium-wrappers-sumo": "0.8.2",
+    "@noble/hashes": "2.4.0",
+    "@types/node": "22.20.5",
     "vitest": "4.1.11"
   }
 }
