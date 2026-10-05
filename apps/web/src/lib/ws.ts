@@ -3,10 +3,12 @@
 import {
   base64urlDecode,
   base64urlEncode,
+  encodeChunkFrame,
   ERRORS,
   parseServerFrame,
   RESULT_DATA,
   WS,
+  type ChunkFrameHeader,
   type ErrorCode,
   type EventFrame,
   type RequestFrame,
@@ -50,7 +52,7 @@ export type RequestInput = DistributiveOmit<RequestFrame, 'reqId'>;
 type DataOf<T extends RequestType> = T extends keyof ResultDataMap ? ResultDataMap[T] : never;
 
 interface Pending {
-  t: RequestType;
+  t: RequestType | 'room.chunk';
   resolve: (data: unknown) => void;
   reject: (error: RequestError) => void;
   timer: ReturnType<typeof setTimeout>;
@@ -106,6 +108,30 @@ export class RelayConnection {
       }, this.options.requestTimeoutMs ?? 15_000);
       this.pending.set(reqId, { t, resolve: resolve as (data: unknown) => void, reject, timer });
       socket.send(JSON.stringify({ ...frame, reqId }));
+    });
+  }
+
+  /** Unggah satu chunk gambar lewat frame biner (PRD §13.2); result divalidasi seperti request lain. */
+  requestChunk(
+    header: Omit<ChunkFrameHeader, 'reqId'>,
+    data: Uint8Array,
+  ): Promise<ResultDataMap['room.chunk']> {
+    if (this.status !== 'ready' || !this.socket) return Promise.reject(new RequestError('offline'));
+    const reqId = (this.reqId = (this.reqId % 2_000_000_000) + 1);
+    const frame = encodeChunkFrame({ ...header, reqId }, data);
+    const socket = this.socket;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(reqId);
+        reject(new RequestError('timeout'));
+      }, this.options.requestTimeoutMs ?? 30_000);
+      this.pending.set(reqId, {
+        t: 'room.chunk',
+        resolve: resolve as (data: unknown) => void,
+        reject,
+        timer,
+      });
+      socket.send(frame);
     });
   }
 

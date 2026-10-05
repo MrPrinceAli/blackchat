@@ -3,6 +3,8 @@
 import { SELF } from 'cloudflare:test';
 import {
   AEAD_OVERHEAD,
+  encodeChunkFrame,
+  IMAGE_CIPHER_CHUNK_BYTES,
   base64urlDecode,
   base64urlEncode,
   concatBytes,
@@ -13,6 +15,7 @@ import {
   parseServerFrame,
   SEALED_KEY_BYTES,
   utf8Encode,
+  type ChunkFrameHeader,
   type RoomAuth,
   type RoomOp,
   type SendOp,
@@ -102,6 +105,16 @@ export class TestSocket {
   async request(frame: { t: string; [key: string]: unknown }): Promise<ResultFrame> {
     const reqId = ++this.reqId;
     this.sendRaw(JSON.stringify({ ...frame, reqId }));
+    return (await this.next((f) => f.t === 'result' && f.reqId === reqId)) as ResultFrame;
+  }
+
+  /** Kirim frame biner chunk (PRD §13.2) dan tunggu result-nya. */
+  async requestChunk(
+    header: Omit<ChunkFrameHeader, 'reqId'>,
+    data: Uint8Array,
+  ): Promise<ResultFrame> {
+    const reqId = ++this.reqId;
+    this.sendRaw(encodeChunkFrame({ ...header, reqId }, data).buffer as ArrayBuffer);
     return (await this.next((f) => f.t === 'result' && f.reqId === reqId)) as ResultFrame;
   }
 
@@ -246,4 +259,30 @@ export function ttlFrame(
     peerUserId: peer.userId,
     peerInboxRoomId: other.inboxRoomId,
   };
+}
+
+export const chunkData = (fill = 1): Uint8Array =>
+  new Uint8Array(IMAGE_CIPHER_CHUNK_BYTES).fill(fill);
+
+export function chunkHeader(
+  room: TestRoom,
+  me: 'a' | 'b',
+  peer: TestAccount,
+  msgId: string,
+  idx: number,
+) {
+  const other = room[me === 'a' ? 'b' : 'a'];
+  const op = { kind: 'putChunk' as const, roomId: room.roomId, msgId, idx };
+  return {
+    op,
+    auth: authFor(room[me], op),
+    peerUserId: peer.userId,
+    peerInboxRoomId: other.inboxRoomId,
+    sealedHeaderForPeer: sealedHeader(),
+  };
+}
+
+export function getChunkFrame(room: TestRoom, me: 'a' | 'b', msgId: string, idx: number) {
+  const op = { kind: 'getChunk' as const, roomId: room.roomId, msgId, idx };
+  return { t: 'room.getChunk', op, auth: authFor(room[me], op) };
 }

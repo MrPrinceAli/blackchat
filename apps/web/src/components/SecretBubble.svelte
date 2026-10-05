@@ -1,7 +1,9 @@
 <script lang="ts">
-  // Bubble teks rahasia (PRD §7.1, §10.2). Teks selalu dirender sebagai text node, tidak pernah HTML (PRD §7.6).
+  // Bubble rahasia teks atau gambar (PRD §7.1, §7.5, §10.2). Teks selalu text node, tidak pernah HTML (PRD §7.6).
+  // Gambar digambar ke <canvas> (bukan <img>) agar tidak bisa diseret atau disimpan lewat menu.
   import { MESSAGE } from '@blackchat/protocol';
-  import { renderBubble } from '../lib/bubble-canvas';
+  import { renderBubble, renderImageBubble, type BubbleStyle } from '../lib/bubble-canvas';
+  import { displaySize } from '../lib/images';
   import { seen } from '../lib/visibility';
   import { strings } from '../lib/strings';
   import BurnFx from './BurnFx.svelte';
@@ -19,6 +21,8 @@
     onGone,
     onMenu,
     onSeen,
+    image,
+    upload,
   }: {
     text: string | null;
     mine: boolean;
@@ -32,6 +36,10 @@
     onMenu?: (x: number, y: number) => void;
     /** Pesan masuk terdepan benar-benar dilihat (PRD §7.2). */
     onSeen?: () => void;
+    /** Pesan gambar: ukuran asli dan pemuat bitmap (unduh + dekripsi). Teks = caption. */
+    image?: { w: number; h: number; load: () => Promise<ImageBitmap> } | undefined;
+    /** Progres upload gambar sendiri. */
+    upload?: { done: number; total: number } | undefined;
   } = $props();
 
   type Phase = 'live' | 'burning' | 'burned';
@@ -40,6 +48,36 @@
   let element = $state<HTMLDivElement>();
   let burn = $state<{ source: HTMLCanvasElement; width: number; height: number } | null>(null);
   let pressTimer: ReturnType<typeof setTimeout> | undefined;
+  let imageCanvas = $state<HTMLCanvasElement>();
+  let captionElement = $state<HTMLParagraphElement>();
+  let drawn = $state(false);
+  let loading = false;
+  let failed = $state(false);
+  let size = $state({ width: 0, height: 0 });
+
+  // Gambar baru diunduh saat bubble tampil (bukan saat masih antre). Timer baru bisa mulai setelah tergambar.
+  $effect(() => {
+    if (!image || !imageCanvas || drawn || loading || status === 'queued' || status === 'retracted')
+      return;
+    loading = true;
+    const canvas = imageCanvas;
+    const maxWidth = Math.min(480, innerWidth * 0.85) - 32;
+    size = displaySize(image.w, image.h, maxWidth, innerHeight);
+    image
+      .load()
+      .then((bitmap) => {
+        const ratio = devicePixelRatio || 1;
+        canvas.width = Math.round(size.width * ratio);
+        canvas.height = Math.round(size.height * ratio);
+        canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        bitmap.close();
+        drawn = true;
+      })
+      .catch(() => {
+        failed = true;
+        setTimeout(() => onGone?.(), MESSAGE.TOMBSTONE_MS);
+      });
+  });
 
   const seconds = $derived(Math.ceil(left / 1000));
   const progress = $derived(Math.max(0, Math.min(1, left / (ttl * 1000))));
@@ -75,7 +113,7 @@
     const rect = element.getBoundingClientRect();
     const css = getComputedStyle(element);
     const transparent = (c: string) => c === 'transparent' || c === 'rgba(0, 0, 0, 0)';
-    const source = renderBubble(text ?? '', {
+    const style: BubbleStyle = {
       width: rect.width,
       height: rect.height,
       fill: transparent(css.backgroundColor) ? null : css.backgroundColor,
@@ -84,7 +122,21 @@
       font: `${css.fontWeight} ${css.fontSize} ${css.fontFamily}`,
       lineHeight: parseFloat(css.lineHeight) || parseFloat(css.fontSize) * 1.5,
       padding: parseFloat(css.paddingLeft) || 12,
-    });
+    };
+    let source: HTMLCanvasElement;
+    if (image && imageCanvas && drawn) {
+      const box = imageCanvas.getBoundingClientRect();
+      const captionY = captionElement ? captionElement.getBoundingClientRect().top - rect.top : 0;
+      source = renderImageBubble(
+        imageCanvas,
+        { x: box.left - rect.left, y: box.top - rect.top, width: box.width, height: box.height },
+        text,
+        captionY,
+        style,
+      );
+      // Piksel gambar asli dibuang begitu efek lebur punya salinannya (PRD §7.5).
+      imageCanvas.getContext('2d')?.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+    } else source = renderBubble(text ?? '', style);
     burn = { source, width: rect.width, height: rect.height };
     phase = 'burning';
   }
@@ -119,6 +171,27 @@
   }
 </script>
 
+{#snippet content()}
+  {#if image}
+    {#if failed}
+      <p class="text muted">{strings.chat.imageFailed}</p>
+    {:else}
+      <div class="image-frame" role="img" aria-label={strings.chat.imageAlt}>
+        <canvas
+          class="image"
+          bind:this={imageCanvas}
+          aria-hidden="true"
+          style:width={`${size.width}px`}
+          style:height={`${size.height}px`}
+        ></canvas>
+      </div>
+    {/if}
+    {#if text}<p class="text caption" bind:this={captionElement}>{text}</p>{/if}
+  {:else}
+    <p class="text">{text}</p>
+  {/if}
+{/snippet}
+
 <div class="row" class:mine>
   {#if status === 'retracted' && !mine}
     <p class="tombstone muted">{strings.chat.retracted}</p>
@@ -148,18 +221,18 @@
           onpointercancel={cancelPress}
           onkeydown={onKeydown}
         >
-          <p class="text">{text}</p>
+          {@render content()}
         </div>
       {:else}
         <div
           class="bubble"
           bind:this={element}
           use:seen={{
-            enabled: status === 'delivered' && phase === 'live',
+            enabled: status === 'delivered' && phase === 'live' && (!image || drawn),
             onSeen: () => onSeen?.(),
           }}
         >
-          <p class="text">{text}</p>
+          {@render content()}
           <Watermark mark={watermark} />
         </div>
       {/if}
@@ -171,7 +244,9 @@
       {:else if mine && status === 'delivered'}
         <p class="meta muted">{strings.chat.notOpened}</p>
       {:else if mine && status === 'sending'}
-        <p class="meta muted">{strings.chat.sending}</p>
+        <p class="meta muted">
+          {upload ? strings.chat.uploading(upload.done, upload.total) : strings.chat.sending}
+        </p>
       {/if}
     </div>
   {/if}
@@ -210,6 +285,14 @@
   }
   .text {
     white-space: pre-wrap;
+  }
+  .image {
+    display: block;
+    max-width: 100%;
+    pointer-events: none;
+  }
+  .caption {
+    margin-top: var(--space-2);
   }
   .censored {
     display: grid;

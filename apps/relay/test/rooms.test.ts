@@ -2,6 +2,8 @@ import { env, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test'
 import {
   ACCOUNT,
   base64urlEncode,
+  encodeChunkFrame,
+  IMAGE_CIPHER_CHUNK_BYTES,
   LABELS,
   LIMITS,
   WS,
@@ -21,6 +23,9 @@ import {
   sendFrame,
   sendOp,
   syncFrame,
+  chunkData,
+  chunkHeader,
+  getChunkFrame,
   TestSocket,
   ttlFrame,
   type TestRoom,
@@ -431,15 +436,6 @@ describe('batas (PRD §6.2, §6.4)', () => {
       error: 'rate_limited',
     });
   });
-
-  it('frame belum didukung (W10) dibalas invalid', async () => {
-    const { room, a } = await pair();
-    const op = { kind: 'getChunk' as const, roomId: room.roomId, msgId: b64(16), idx: 0 };
-    expect(await a.request({ t: 'room.getChunk', op, auth: authFor(room.a, op) })).toMatchObject({
-      ok: false,
-      error: 'invalid',
-    });
-  });
 });
 
 describe('umur akun & penjaga akun mati (PRD §5.3, §6.1)', () => {
@@ -711,5 +707,151 @@ describe('kesepakatan timer (PRD §7.3)', () => {
       ok: false,
       error: 'invalid',
     });
+  });
+});
+
+describe('gambar: chunk terenkripsi (PRD §4.5, §6.2, §13.2)', () => {
+  async function imageMessage(chunks = 2) {
+    const ctx = await pair(5);
+    const op = sendOp(ctx.room, { chunks });
+    expect(await ctx.a.request(sendFrame(ctx.room, 'a', ctx.bob, op))).toMatchObject({
+      ok: true,
+      data: { seq: 1 },
+    });
+    return { ...ctx, op };
+  }
+
+  it('lawan baru diberi tahu setelah chunk terakhir; chunk bisa diunduh kedua pihak', async () => {
+    const { alice, bob, room, a, op } = await imageMessage(2);
+    const b = await TestSocket.connect(bob);
+    // Belum lengkap: belum muncul di sync lawan, belum ada event.
+    expect(
+      ((await b.request(syncFrame(room, 'b'))) as { ok: true; data: SyncResult }).data.messages,
+    ).toEqual([]);
+    expect(
+      await a.requestChunk(chunkHeader(room, 'a', bob, op.msgId, 0), chunkData(1)),
+    ).toMatchObject({ ok: true, data: { complete: false } });
+    expect(b.pending().filter((f) => f.t === 'event')).toEqual([]);
+    expect(
+      await a.requestChunk(chunkHeader(room, 'a', bob, op.msgId, 1), chunkData(2)),
+    ).toMatchObject({ ok: true, data: { complete: true } });
+    expect(await b.next((f) => f.t === 'event')).toEqual({
+      t: 'event',
+      inboxRoomId: room.b.inboxRoomId,
+      payload: { t: 'new', seq: 1 },
+    });
+
+    const synced = (await b.request(syncFrame(room, 'b'))) as { ok: true; data: SyncResult };
+    expect(synced.data.messages[0]).toMatchObject({ msgId: op.msgId, chunks: 2 });
+    const got = await b.request(getChunkFrame(room, 'b', op.msgId, 1));
+    expect(got).toMatchObject({ ok: true, data: { data: base64urlEncode(chunkData(2)) } });
+    expect(await a.request(getChunkFrame(room, 'a', op.msgId, 0))).toMatchObject({ ok: true });
+    expect(alice.userId).toBeTruthy();
+  });
+
+  it('semua chunk tersimpan berukuran identik; ukuran lain ditolak sebagai frame rusak', async () => {
+    const { bob, room, a, op } = await imageMessage(1);
+    await a.requestChunk(chunkHeader(room, 'a', bob, op.msgId, 0), chunkData());
+    const sizes = (await dumpSql(roomStub(room.roomId), ['chunks'])).chunks!.map(
+      (c) => (c as { data: ArrayBuffer }).data.byteLength,
+    );
+    expect(sizes).toEqual([IMAGE_CIPHER_CHUNK_BYTES]);
+
+    const other = await imageMessage(1);
+    other.a.sendRaw(
+      encodeChunkFrame(
+        { ...chunkHeader(other.room, 'a', other.bob, other.op.msgId, 0), reqId: 99 },
+        new Uint8Array(1000),
+      ).buffer as ArrayBuffer,
+    );
+    expect((await other.a.closed).code).toBe(WS.CLOSE.PROTOCOL_ERROR);
+  });
+
+  it('hanya pengirim yang bisa mengunggah; idx di luar jumlah chunk & duplikat ditolak', async () => {
+    const { alice, bob, room, a, op } = await imageMessage(1);
+    const b = await TestSocket.connect(bob);
+    expect(
+      await b.requestChunk(chunkHeader(room, 'b', alice, op.msgId, 0), chunkData()),
+    ).toMatchObject({ ok: false, error: 'forbidden' });
+    expect(
+      await a.requestChunk(chunkHeader(room, 'a', bob, op.msgId, 1), chunkData()),
+    ).toMatchObject({ ok: false, error: 'invalid' });
+    expect(
+      await a.requestChunk(chunkHeader(room, 'a', bob, op.msgId, 0), chunkData()),
+    ).toMatchObject({ ok: true, data: { complete: true } });
+    expect(
+      await a.requestChunk(chunkHeader(room, 'a', bob, op.msgId, 0), chunkData()),
+    ).toMatchObject({ ok: false, error: 'not_found' });
+  });
+
+  it('frame biner sebelum autentikasi ditutup 4401', async () => {
+    const alice = await registered();
+    const s = await TestSocket.open(alice.userId);
+    await s.next((f) => f.t === 'challenge');
+    s.sendRaw(new Uint8Array(10).buffer);
+    expect((await s.closed).code).toBe(WS.CLOSE.UNAUTHORIZED);
+  });
+
+  it('upload yang terputus dihapus otomatis setelah 10 menit', async () => {
+    const { bob, room, a, op } = await imageMessage(2);
+    await a.requestChunk(chunkHeader(room, 'a', bob, op.msgId, 0), chunkData());
+    await advanceClock(LIMITS.UPLOAD_DEADLINE_MS + 1);
+    await runDurableObjectAlarm(roomStub(room.roomId));
+    const dump = await dumpSql(roomStub(room.roomId), ['messages', 'chunks']);
+    expect(dump.messages).toEqual([]);
+    expect(dump.chunks).toEqual([]);
+  });
+
+  it('chunk pesan yang sudah melebur tidak bisa diunduh', async () => {
+    const { alice, bob, room, a, op } = await imageMessage(1);
+    await a.requestChunk(chunkHeader(room, 'a', bob, op.msgId, 0), chunkData());
+    const b = await TestSocket.connect(bob);
+    await b.request(openedFrame(room, 'b', alice, [op.msgId]));
+    await advanceClock(5_300);
+    expect(await b.request(getChunkFrame(room, 'b', op.msgId, 0))).toMatchObject({
+      ok: false,
+      error: 'not_found',
+    });
+  });
+
+  it('membatalkan saat upload menghapus record dan chunk yang sudah masuk', async () => {
+    const { bob, room, a, op } = await imageMessage(3);
+    await a.requestChunk(chunkHeader(room, 'a', bob, op.msgId, 0), chunkData());
+    expect(await a.request(retractFrame(room, 'a', bob, op.msgId))).toMatchObject({ ok: true });
+    const dump = await dumpSql(roomStub(room.roomId), ['messages', 'chunks']);
+    expect(dump.messages).toEqual([]);
+    expect(dump.chunks).toEqual([]);
+  });
+
+  it('kuota 150 MB per akun → quota_exceeded', async () => {
+    const { alice, bob, room, a, op } = await imageMessage(1);
+    await runInDurableObject(inbox(alice.userId), async (_i, state) => {
+      state.storage.kv.put('uploaded_bytes', LIMITS.ACCOUNT_UPLOAD_QUOTA_BYTES - 100);
+    });
+    expect(
+      await a.requestChunk(chunkHeader(room, 'a', bob, op.msgId, 0), chunkData()),
+    ).toMatchObject({ ok: false, error: 'quota_exceeded' });
+  });
+
+  it('total chunk per room maks 30 MB → room_full', async () => {
+    const { bob, room, a, op } = await imageMessage(1);
+    await runInDurableObject(roomStub(room.roomId), async (_i, state) => {
+      // Isi room dengan chunk pesan lain sampai hampir penuh (blob SQLite maks ±2 MB, jadi per 1 MB).
+      const MB = 1024 * 1024;
+      let left = LIMITS.ROOM_MAX_CHUNK_BYTES - 1000;
+      for (let i = 0; left > 0; i++) {
+        const size = Math.min(MB, left);
+        state.storage.sql.exec(
+          'INSERT INTO chunks (msg_id, idx, data) VALUES (?, ?, ?)',
+          'pengisi',
+          i,
+          new Uint8Array(size),
+        );
+        left -= size;
+      }
+    });
+    expect(
+      await a.requestChunk(chunkHeader(room, 'a', bob, op.msgId, 0), chunkData()),
+    ).toMatchObject({ ok: false, error: 'room_full' });
   });
 });

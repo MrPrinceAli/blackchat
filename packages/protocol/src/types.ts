@@ -299,11 +299,15 @@ export type ClientFrameType = ClientFrame['t'];
 /** Frame yang dibalas dengan `result`. */
 export type RequestFrame = Exclude<ClientFrame, PingFrame | AuthFrame>;
 
-/** Header JSON di dalam frame biner chunk (PRD §13.2). */
-export interface ChunkFrameHeader {
+/**
+ * Header JSON di dalam frame biner chunk (PRD §13.2). Rute lawan ikut di setiap chunk agar relay bisa
+ * memberi tahu lawan saat chunk terakhir masuk, tanpa menyimpan relasi antar-akun (D-018).
+ */
+export interface ChunkFrameHeader extends PeerRoute {
   reqId: number;
   op: PutChunkOp;
   auth: RoomAuth;
+  sealedHeaderForPeer?: B64u;
 }
 
 export interface ChunkFrame {

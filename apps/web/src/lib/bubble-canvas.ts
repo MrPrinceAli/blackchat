@@ -74,3 +74,33 @@ export function renderBubble(
   );
   return canvas;
 }
+
+/**
+ * Gambar bubble berisi gambar (dan caption) ke canvas untuk efek lebur: piksel gambar diambil dari canvas yang
+ * sedang tampil, caption digambar ulang dengan fillText.
+ */
+export function renderImageBubble(
+  image: HTMLCanvasElement,
+  imageBox: { x: number; y: number; width: number; height: number },
+  caption: string | null,
+  captionY: number,
+  style: BubbleStyle,
+  ratio = globalThis.devicePixelRatio || 1,
+): HTMLCanvasElement {
+  const canvas = renderBubble('', style, ratio);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+  ctx.drawImage(image, imageBox.x, imageBox.y, imageBox.width, imageBox.height);
+  if (caption) {
+    ctx.fillStyle = style.color;
+    ctx.font = style.font;
+    ctx.textBaseline = 'top';
+    const lines = wrapText(
+      caption,
+      style.width - style.padding * 2,
+      (s) => ctx.measureText(s).width,
+    );
+    lines.forEach((line, i) => ctx.fillText(line, style.padding, captionY + i * style.lineHeight));
+  }
+  return canvas;
+}

@@ -6,22 +6,28 @@ import {
   base64urlDecode,
   base64urlEncode,
   ERRORS,
+  getChunkOp,
+  IMAGE_CIPHER_CHUNK_BYTES,
   initOp,
   LIMITS,
   MESSAGE,
   openedOp,
   purgeOp,
+  putChunkOp,
   retractOp,
   roomAuth as roomAuthValidator,
   sendOp,
   syncOp,
   ttlOp,
   type ErrorCode,
+  type GetChunkOp,
+  type GetChunkResult,
   type InitOp,
   type InitResult,
   type OpenedOp,
   type OpenedResult,
   type PurgeOp,
+  type PutChunkOp,
   type RetractOp,
   type RoomAuth,
   type RoomOp,
@@ -374,6 +380,82 @@ export class RoomDO extends DurableObject<Env> {
     }
     await this.scheduleAlarm();
     return ok({ opened });
+  }
+
+  /**
+   * Unggah satu chunk gambar (PRD §6.2): hanya pengirim pesan itu, ukuran tepat IMAGE_CIPHER_CHUNK_BYTES,
+   * total chunk room maks 30 MB. Saat chunk terakhir masuk, pesan menjadi `uploaded=1` dan seq-nya dikembalikan
+   * agar InboxDO memberi tahu lawan.
+   */
+  async putChunk(
+    op: PutChunkOp,
+    auth: RoomAuth,
+    data: Uint8Array,
+  ): Promise<RoomResult<{ complete: boolean; seq: number }>> {
+    const authorized = this.authorize(putChunkOp, op, auth);
+    if (!authorized.ok) return authorized;
+    const { msgId, idx } = authorized.value;
+    if (data.length !== IMAGE_CIPHER_CHUNK_BYTES) return fail(ERRORS.INVALID);
+    const row = this.sql
+      .exec<{ from_tag: string; chunks: number; uploaded: number; seq: number }>(
+        'SELECT from_tag, chunks, uploaded, seq FROM messages WHERE msg_id = ?',
+        msgId,
+      )
+      .toArray()[0];
+    if (!row || row.uploaded === 1) return fail(ERRORS.NOT_FOUND);
+    if (row.from_tag !== auth.memberTag) return fail(ERRORS.FORBIDDEN);
+    if (idx >= row.chunks) return fail(ERRORS.INVALID);
+    if (
+      this.sql.exec('SELECT 1 FROM chunks WHERE msg_id = ? AND idx = ?', msgId, idx).toArray()
+        .length > 0
+    ) {
+      return fail(ERRORS.CONFLICT);
+    }
+    const stored = this.sql
+      .exec<{ n: number }>('SELECT COALESCE(SUM(LENGTH(data)), 0) AS n FROM chunks')
+      .one().n;
+    if (stored + data.length > LIMITS.ROOM_MAX_CHUNK_BYTES) return fail(ERRORS.ROOM_FULL);
+
+    let complete = false;
+    this.ctx.storage.transactionSync(() => {
+      this.sql.exec('INSERT INTO chunks (msg_id, idx, data) VALUES (?, ?, ?)', msgId, idx, data);
+      const count = this.sql
+        .exec<{ n: number }>('SELECT COUNT(*) AS n FROM chunks WHERE msg_id = ?', msgId)
+        .one().n;
+      if (count === row.chunks) {
+        this.sql.exec(
+          'UPDATE messages SET uploaded = 1, upload_deadline = NULL WHERE msg_id = ?',
+          msgId,
+        );
+        complete = true;
+      }
+    });
+    if (complete) await this.scheduleAlarm();
+    return ok({ complete, seq: row.seq });
+  }
+
+  /** Unduh satu chunk (PRD §6.2): hanya untuk pesan yang sudah lengkap dan belum melebur. */
+  async getChunk(op: GetChunkOp, auth: RoomAuth): Promise<RoomResult<GetChunkResult>> {
+    const authorized = this.authorize(getChunkOp, op, auth);
+    if (!authorized.ok) return authorized;
+    const { msgId, idx } = authorized.value;
+    const row = this.sql
+      .exec<{ uploaded: number; burn_at: number | null }>(
+        'SELECT uploaded, burn_at FROM messages WHERE msg_id = ?',
+        msgId,
+      )
+      .toArray()[0];
+    if (!row || row.uploaded !== 1 || (row.burn_at !== null && row.burn_at <= now()))
+      return fail(ERRORS.NOT_FOUND);
+    const chunk = this.sql
+      .exec<{ data: ArrayBuffer }>(
+        'SELECT data FROM chunks WHERE msg_id = ? AND idx = ?',
+        msgId,
+        idx,
+      )
+      .toArray()[0];
+    if (!chunk) return fail(ERRORS.NOT_FOUND);
+    return ok({ data: base64urlEncode(new Uint8Array(chunk.data)) });
   }
 
   /**

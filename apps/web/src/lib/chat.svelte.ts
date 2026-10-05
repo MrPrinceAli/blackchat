@@ -5,7 +5,9 @@ import {
   ACCOUNT,
   base64urlDecode,
   base64urlEncode,
+  IMAGE,
   LIMITS,
+  MESSAGE,
   type EventFrame,
   type InitOp,
   type LookupResponse,
@@ -40,11 +42,25 @@ export interface RoomEntry {
 
 export type MessageStatus = 'sending' | 'delivered' | 'opened' | 'retracted';
 
+export interface ImageInfo {
+  w: number;
+  h: number;
+  mime: 'image/webp' | 'image/jpeg';
+  chunks: number;
+  bytes: number;
+  hash: string;
+}
+
 export interface ChatMessage {
   msgId: string;
   seq: number;
   mine: boolean;
   ttl: Ttl;
+  kind: 'text' | 'image';
+  /** Metadata gambar dari Inner terenkripsi (PRD §4.7). Teks = caption. */
+  image?: ImageInfo;
+  /** Progres upload gambar sendiri. */
+  upload?: { done: number; total: number };
   /** Plaintext; di-null-kan saat lebur (PRD §7.6). */
   text: string | null;
   status: MessageStatus;
@@ -95,6 +111,9 @@ export function queueFront(messages: ChatMessage[]): string | null {
 
 // ================================================================ util
 
+const MESSAGE_CAPTION_MAX = MESSAGE.CAPTION_MAX_CHARS;
+const IMAGE_UPLOAD_CONCURRENCY = IMAGE.UPLOAD_CONCURRENCY;
+
 // Sengaja tidak reaktif: kunci rahasia room tidak boleh menjadi state yang dipantau UI.
 // eslint-disable-next-line svelte/prefer-svelte-reactivity
 const keyCache = new Map<string, RoomKeys>();
@@ -102,6 +121,24 @@ let bumpCounter = 0;
 /** msgId yang gagal didekripsi/diverifikasi: tidak dicoba ulang, tidak ditampilkan. */
 // eslint-disable-next-line svelte/prefer-svelte-reactivity -- cache internal, tidak ditampilkan
 const rejected = new Set<string>();
+/** contentKey pesan gambar (dibutuhkan untuk mendekripsi chunk). Di-wipe saat pesan dibuang. */
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- rahasia, sengaja tidak reaktif
+const contentKeys = new Map<string, Uint8Array>();
+/** Byte gambar yang baru dikirim sendiri (pratinjau tanpa unduh ulang). Di-wipe saat pesan dibuang. */
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- rahasia, sengaja tidak reaktif
+const localImages = new Map<string, Uint8Array>();
+/** Upload gambar yang dihentikan karena dibatalkan. */
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cache internal
+const abortedUploads = new Set<string>();
+
+function forgetSecrets(msgId: string): void {
+  const s = activeSession();
+  for (const map of [contentKeys, localImages]) {
+    const value = map.get(msgId);
+    if (value) s?.crypto.wipe(value);
+    map.delete(msgId);
+  }
+}
 
 function requireSession(): ActiveSession {
   const s = activeSession();
@@ -432,17 +469,22 @@ function decrypt(s: ActiveSession, open: OpenRoom, record: SyncedMessage): ChatM
       myXSk: s.identity.xSk,
       expected: { fromEdPk, roomId: open.keys.roomId, msgId: record.msgId },
     });
-    s.crypto.wipe(contentKey);
-    // Gambar ditampilkan mulai W10.
-    if (inner.kind !== 'text' || inner.text === undefined) return null;
+    // Inner gambar harus cocok dengan record server (jumlah chunk).
+    if (inner.kind === 'image' && inner.image?.chunks !== record.chunks)
+      throw new Error('chunk tidak cocok');
+    if (inner.kind === 'text' && record.chunks !== 0) throw new Error('chunk tidak cocok');
+    if (inner.kind === 'image') contentKeys.set(record.msgId, contentKey);
+    else s.crypto.wipe(contentKey);
     const message: ChatMessage = {
       msgId: record.msgId,
       seq: record.seq,
       mine: record.mine,
       ttl: s.crypto.effectiveTtl(inner.ttl, record.ttl),
-      text: inner.text,
+      kind: inner.kind,
+      text: inner.text ?? null,
       status: record.remainingMs !== undefined ? 'opened' : 'delivered',
     };
+    if (inner.image) message.image = { ...inner.image };
     if (record.remainingMs !== undefined) message.remainingMs = record.remainingMs;
     return message;
   } catch {
@@ -485,6 +527,7 @@ export async function sendText(text: string): Promise<void> {
     seq: Number.MAX_SAFE_INTEGER,
     mine: true,
     ttl: open.ttl,
+    kind: 'text',
     text: trimmed,
     status: 'sending',
   };
@@ -561,6 +604,8 @@ export async function retractMessage(msgId: string): Promise<void> {
   const open = chat.open;
   const message = chat.messages.find((m) => m.msgId === msgId);
   if (!s || !open || !message?.mine) return;
+  // Upload yang sedang berjalan dihentikan (PRD §7.4).
+  abortedUploads.add(msgId);
   const op = { kind: 'retract' as const, roomId: open.keys.roomId, msgId };
   try {
     await s.connection.request({
@@ -578,6 +623,202 @@ export async function retractMessage(msgId: string): Promise<void> {
     }
   }
   removeMessage(msgId);
+}
+
+// ================================================================ gambar (PRD §4.5 langkah 3, §7.5)
+
+export type ImageSendError =
+  'too_large' | 'unsupported' | 'undecodable' | 'caption' | 'quota' | 'room_full' | 'generic';
+
+/**
+ * Kirim gambar: proses (EXIF hilang), enkripsi chunk dengan contentKey yang sama, room.send, lalu unggah chunk
+ * maks 2 bersamaan. Pesan baru diberitahukan ke lawan setelah chunk terakhir masuk (D-018).
+ */
+export async function sendImage(file: Blob, caption: string): Promise<void> {
+  const s = requireSession();
+  const open = chat.open;
+  if (!open) return;
+  const text = caption.trim();
+  if ([...text].length > MESSAGE_CAPTION_MAX) {
+    chat.chatNotice = strings.errors.captionTooLong;
+    return;
+  }
+  const { processImage, ImageError } = await import('./images');
+  let processed;
+  try {
+    processed = await processImage(file);
+  } catch (error) {
+    const code = error instanceof ImageError ? error.code : 'undecodable';
+    chat.chatNotice =
+      code === 'too_large' ? strings.errors.imageTooLarge : strings.errors.imageUnreadable;
+    return;
+  }
+
+  const msgId = s.crypto.newMsgId();
+  const contentKey = s.crypto.newContentKey();
+  const encrypted = s.crypto.encryptImage(processed.bytes, contentKey, open.keys.roomId, msgId);
+  const image: ImageInfo = {
+    w: processed.w,
+    h: processed.h,
+    mime: processed.mime,
+    chunks: encrypted.chunks.length,
+    bytes: encrypted.bytes,
+    hash: encrypted.hash,
+  };
+  const inner = s.crypto.signInner(s.identity.edSk, {
+    v: 1,
+    kind: 'image',
+    msgId,
+    roomId: open.keys.roomId,
+    fromEdPk: base64urlEncode(s.identity.edPk),
+    ttl: open.ttl,
+    ts: Date.now(),
+    ...(text ? { text } : {}),
+    image,
+  });
+  const sealed = s.crypto.encryptMessage({
+    inner,
+    contentKey,
+    myXPk: s.identity.xPk,
+    peerXPk: base64urlDecode(open.entry.peer.peerXPk),
+  });
+  s.crypto.wipe(contentKey);
+  localImages.set(msgId, processed.bytes);
+
+  chat.messages = [
+    ...chat.messages,
+    {
+      msgId,
+      seq: Number.MAX_SAFE_INTEGER,
+      mine: true,
+      ttl: open.ttl,
+      kind: 'image',
+      image,
+      text: text || null,
+      status: 'sending',
+      upload: { done: 0, total: image.chunks },
+    },
+  ];
+  const fail = (notice: string) => {
+    chat.notice = null;
+    chat.chatNotice = notice;
+    removeMessage(msgId);
+  };
+
+  const op = {
+    kind: 'send' as const,
+    roomId: open.keys.roomId,
+    msgId,
+    ttl: open.ttl,
+    body: base64urlEncode(sealed.body),
+    keyForPeer: base64urlEncode(sealed.keyForPeer),
+    keyForSelf: base64urlEncode(sealed.keyForSelf),
+    chunks: image.chunks,
+  };
+  try {
+    const { seq } = await s.connection.request({
+      t: 'room.send',
+      op,
+      auth: s.crypto.roomAuth(open.keys, op),
+      peerUserId: open.entry.peer.peerUserId,
+      peerInboxRoomId: open.keys.peerInboxRoomId,
+      sealedHeaderForPeer: open.headerForPeer,
+    });
+    const current = chat.messages.find((m) => m.msgId === msgId);
+    if (current) current.seq = seq;
+  } catch (error) {
+    const code = error instanceof RequestError ? error.code : 'generic';
+    return fail(code === 'room_full' ? strings.errors.roomFull : strings.chat.sendFailed);
+  }
+
+  // Unggah chunk, maks 2 bersamaan (PRD §13.2).
+  let next = 0;
+  let failure: string | null = null;
+  const worker = async () => {
+    while (next < encrypted.chunks.length && !failure && !abortedUploads.has(msgId)) {
+      const idx = next++;
+      const putOp = { kind: 'putChunk' as const, roomId: open.keys.roomId, msgId, idx };
+      try {
+        await s.connection.requestChunk(
+          {
+            op: putOp,
+            auth: s.crypto.roomAuth(open.keys, putOp),
+            peerUserId: open.entry.peer.peerUserId,
+            peerInboxRoomId: open.keys.peerInboxRoomId,
+            sealedHeaderForPeer: open.headerForPeer,
+          },
+          encrypted.chunks[idx]!,
+        );
+        const current = chat.messages.find((m) => m.msgId === msgId);
+        if (current?.upload) current.upload.done++;
+      } catch (error) {
+        const code = error instanceof RequestError ? error.code : 'generic';
+        failure =
+          code === 'quota_exceeded'
+            ? strings.errors.quotaExceeded
+            : code === 'room_full'
+              ? strings.errors.roomFull
+              : strings.chat.sendFailed;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: IMAGE_UPLOAD_CONCURRENCY }, worker));
+  for (const chunk of encrypted.chunks) s.crypto.wipe(chunk);
+  if (abortedUploads.has(msgId)) return;
+  if (failure) {
+    // Upload gagal: batalkan pesan yang tidak lengkap di server (sisanya disapu upload_deadline).
+    void retractMessage(msgId);
+    return fail(failure);
+  }
+  const current = chat.messages.find((m) => m.msgId === msgId);
+  if (current) {
+    current.status = 'delivered';
+    delete current.upload;
+  }
+  open.entry.bump = ++bumpCounter;
+}
+
+/**
+ * Siapkan gambar untuk digambar (PRD §7.5): unduh semua chunk → dekripsi → cek hash → ImageBitmap.
+ * Byte hasil dekripsi di-wipe setelah bitmap dibuat. Pemanggil wajib `bitmap.close()` setelah menggambar.
+ */
+export async function loadImage(msgId: string): Promise<ImageBitmap> {
+  const s = requireSession();
+  const open = chat.open;
+  const message = chat.messages.find((m) => m.msgId === msgId);
+  if (!open || !message?.image) throw new Error('pesan gambar tidak ditemukan');
+  const info = message.image;
+  const local = localImages.get(msgId);
+  if (local) return createImageBitmap(new Blob([local.slice()], { type: info.mime }));
+
+  const contentKey = contentKeys.get(msgId);
+  if (!contentKey) throw new Error('kunci konten tidak ada');
+  const chunks: Uint8Array[] = new Array(info.chunks);
+  let next = 0;
+  const worker = async () => {
+    while (next < info.chunks) {
+      const idx = next++;
+      const op = { kind: 'getChunk' as const, roomId: open.keys.roomId, msgId, idx };
+      const { data } = await s.connection.request({
+        t: 'room.getChunk',
+        op,
+        auth: s.crypto.roomAuth(open.keys, op),
+      });
+      chunks[idx] = base64urlDecode(data);
+    }
+  };
+  await Promise.all(Array.from({ length: IMAGE_UPLOAD_CONCURRENCY }, worker));
+  let bytes: Uint8Array | undefined;
+  try {
+    bytes = s.crypto.decryptImage(chunks, contentKey, open.keys.roomId, msgId, info);
+    return await createImageBitmap(new Blob([bytes.slice()], { type: info.mime }));
+  } catch (error) {
+    rejected.add(msgId);
+    throw error;
+  } finally {
+    s.crypto.wipe(bytes);
+    for (const chunk of chunks) s.crypto.wipe(chunk);
+  }
 }
 
 // ================================================================ kesepakatan timer (PRD §7.3)
@@ -627,6 +868,7 @@ export async function answerTtl(accept: boolean): Promise<void> {
 export function removeMessage(msgId: string): void {
   const message = chat.messages.find((m) => m.msgId === msgId);
   if (message) message.text = null;
+  forgetSecrets(msgId);
   chat.messages = chat.messages.filter((m) => m.msgId !== msgId);
 }
 
@@ -702,6 +944,8 @@ onSessionReady(({ lastRoomId }) => {
 
 onSessionEnd(() => {
   for (const m of chat.messages) m.text = null;
+  for (const msgId of [...contentKeys.keys(), ...localImages.keys()]) forgetSecrets(msgId);
+  abortedUploads.clear();
   wipeKeys();
   rejected.clear();
   chat.rooms = [];

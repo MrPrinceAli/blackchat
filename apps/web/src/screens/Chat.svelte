@@ -14,6 +14,8 @@
     queueFront,
     removeMessage,
     retractMessage,
+    loadImage,
+    sendImage,
     sendText,
     type ChatMessage,
   } from '../lib/chat.svelte';
@@ -50,9 +52,24 @@
     ];
   }
 
+  /** Pesan sendiri bisa dibatalkan selama belum melebur, termasuk gambar yang masih diunggah (PRD §7.4). */
   function openMenu(m: ChatMessage, x: number, y: number) {
-    if (m.mine && (m.status === 'delivered' || m.status === 'opened'))
+    const uploading =
+      m.kind === 'image' && m.status === 'sending' && m.seq !== Number.MAX_SAFE_INTEGER;
+    if (m.mine && (m.status === 'delivered' || m.status === 'opened' || uploading))
       menu = { x, y, msgId: m.msgId };
+  }
+
+  function attach(file: File, caption: string) {
+    void sendImage(file, caption);
+  }
+
+  /** Drag & drop gambar ke area chat (PRD §7.5). */
+  function onDrop(event: DragEvent) {
+    const file = [...(event.dataTransfer?.files ?? [])].find((f) => f.type.startsWith('image/'));
+    if (!file) return;
+    event.preventDefault();
+    attach(file, '');
   }
 
   async function submitProposal() {
@@ -144,7 +161,14 @@
     {/if}
     {#if chat.chatNotice}<p class="notice" role="status">{chat.chatNotice}</p>{/if}
 
-    <section class="messages" aria-live="polite" use:noContextMenu>
+    <section
+      class="messages"
+      role="log"
+      aria-live="polite"
+      use:noContextMenu
+      ondragover={(event) => event.preventDefault()}
+      ondrop={onDrop}
+    >
       {#each chat.messages as m (m.msgId)}
         <SecretBubble
           text={m.text}
@@ -156,11 +180,15 @@
           onSeen={() => void markSeen(m.msgId)}
           onGone={() => removeMessage(m.msgId)}
           onMenu={(x, y) => openMenu(m, x, y)}
+          image={m.image
+            ? { w: m.image.w, h: m.image.h, load: () => loadImage(m.msgId) }
+            : undefined}
+          upload={m.upload}
         />
       {/each}
     </section>
 
-    <Composer onSend={send} />
+    <Composer onSend={send} onAttach={attach} />
 
     {#if menu}
       <ContextMenu
