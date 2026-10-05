@@ -70,12 +70,19 @@ Kebanyakan aplikasi chat menyimpan semuanya selamanya. blackchat kebalikannya: *
 
 <table>
   <tr>
-    <td align="center" width="75%"><img src="docs/assets/screenshots/desktop-chat.png" alt="Desktop" /><br /><sub><b>Desktop: kedua pesan menghitung mundur</b></sub></td>
-    <td align="center" width="25%"><img src="docs/assets/screenshots/welcome-light.png" alt="Tema terang" /><br /><sub><b>Tema terang otomatis</b></sub></td>
+    <td align="center" colspan="2"><img src="docs/assets/screenshots/welcome-desktop.png" alt="Welcome desktop" /><br /><sub><b>Desktop: pratinjau lebur langsung di halaman depan</b></sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="50%"><img src="docs/assets/screenshots/desktop-chat.png" alt="Chat desktop" /><br /><sub><b>Chat desktop: kedua pesan menghitung mundur</b></sub></td>
+    <td align="center" width="50%">
+      <img src="docs/assets/screenshots/login.png" alt="Halaman masuk" width="48%" />
+      <img src="docs/assets/screenshots/welcome-light.png" alt="Tema terang" width="48%" /><br />
+      <sub><b>Halaman masuk · tema terang otomatis</b></sub>
+    </td>
   </tr>
 </table>
 
-<sub>Hitam-putih, tanpa warna aksen, watermark samar di setiap pesan, layar dihitamkan saat jendela kehilangan fokus. Gambar dibuat ulang dengan <code>pnpm readme:assets</code>.</sub>
+<sub>Monokrom murni: grid titik ala arsip, crop marks, kaca buram, logo gelembung berpiksel yang ikut "melebur". Watermark samar di setiap pesan, layar dihitamkan saat jendela kehilangan fokus. Gambar dibuat ulang dengan <code>pnpm readme:assets</code>.</sub>
 
 ## ✦ Cara kerja
 

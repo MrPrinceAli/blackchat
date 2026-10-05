@@ -3,6 +3,7 @@
   import Composer from '../components/Composer.svelte';
   import ContextMenu, { type MenuItem } from '../components/ContextMenu.svelte';
   import SecretBubble, { type BubbleStatus } from '../components/SecretBubble.svelte';
+  import Icon from '../components/Icon.svelte';
   import TimerPicker from '../components/TimerPicker.svelte';
   import { app } from '../lib/app-state.svelte';
   import {
@@ -92,10 +93,23 @@
   {@const room = chat.open}
   <main class="screen chat">
     <header class="top">
-      <button class="icon" type="button" aria-label={strings.chat.back} onclick={() => closeRoom()}
-        >←</button
+      <button
+        class="icon-button"
+        type="button"
+        aria-label={strings.chat.back}
+        onclick={() => closeRoom()}><Icon name="back" /></button
       >
-      <span class="peer code">@{room.entry.peer.peerUsername}</span>
+      <div class="who">
+        <span class="avatar code" aria-hidden="true"
+          >{room.entry.peer.peerUsername.slice(0, 1)}</span
+        >
+        <span class="who-text">
+          <span class="peer code">@{room.entry.peer.peerUsername}</span>
+          <span class="sub" aria-hidden="true"
+            >{room.verified ? strings.chat.statusVerified : strings.chat.statusEncrypted}</span
+          >
+        </span>
+      </div>
       <button
         class="timer code"
         type="button"
@@ -104,21 +118,21 @@
         onclick={() => {
           proposal = room.ttl === 3 ? 5 : 3;
           proposing = !proposing;
-        }}>⧗ {strings.timer.seconds(room.ttl)}</button
+        }}><Icon name="hourglass" size={14} />{strings.timer.seconds(room.ttl)}</button
       >
       <button
-        class="icon"
+        class="icon-button"
         class:verified={room.verified}
         type="button"
         aria-label={room.verified ? strings.chat.verified : strings.chat.verify}
-        onclick={() => navigate('verify')}>✓</button
+        onclick={() => navigate('verify')}><Icon name="shield" /></button
       >
       <button
-        class="icon"
+        class="icon-button"
         type="button"
         aria-label={strings.chat.menu}
         aria-expanded={headerMenu}
-        onclick={() => (headerMenu = !headerMenu)}>⋯</button
+        onclick={() => (headerMenu = !headerMenu)}><Icon name="more" /></button
       >
     </header>
     {#if headerMenu}
@@ -181,6 +195,10 @@
     {/if}
     {#if chat.chatNotice}<p class="notice" role="status">{chat.chatNotice}</p>{/if}
 
+    <p class="e2e-note" aria-hidden="true">
+      <Icon name="lock" size={13} />{strings.chat.e2eNote(room.ttl)}
+    </p>
+
     <section
       class="messages"
       role="log"
@@ -224,70 +242,131 @@
 <style>
   .chat {
     gap: 0;
-    padding-bottom: 0;
   }
   .top {
+    position: relative;
+    z-index: 2;
     display: grid;
-    grid-template-columns: 44px 1fr auto 44px 44px;
+    grid-template-columns: 44px minmax(0, 1fr) auto 44px 44px;
     align-items: center;
     gap: var(--space-1);
+    margin: 0 calc(-1 * var(--space-2));
     padding-bottom: var(--space-3);
     border-bottom: 1px solid var(--line);
   }
-  .icon {
-    min-width: 44px;
-    height: 44px;
-    border: 0;
-    background: transparent;
+  .who {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+    padding-left: var(--space-1);
   }
-  .timer {
+  .avatar {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-bubble);
     font-size: var(--step--1);
-    padding: 0 var(--space-2);
+  }
+  .who-text {
+    display: grid;
+    min-width: 0;
+    line-height: 1.25;
   }
   .peer {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: var(--step--1);
+    font-weight: 600;
+  }
+  .sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--step--2);
+    color: var(--muted);
+  }
+  .timer {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: 32px;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-control);
+    background: transparent;
+    font-size: var(--step--2);
+    white-space: nowrap;
+    transition:
+      background-color var(--dur-1) var(--ease-out),
+      border-color var(--dur-1) var(--ease-out);
+  }
+  .timer:hover,
+  .timer[aria-expanded='true'] {
+    border-color: var(--fg);
+    background: var(--tint-1);
+  }
+  .verified {
+    background: var(--fg);
+    color: var(--bg);
+  }
+  .verified:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--fg) 86%, var(--bg));
+  }
+  @media (max-width: 420px) {
+    .avatar {
+      display: none;
+    }
   }
   .header-menu {
     display: flex;
     justify-content: flex-end;
     padding: var(--space-3) 0;
     border-bottom: 1px solid var(--line);
+    animation: enter var(--dur-2) var(--ease-out) both;
   }
   .panel {
     display: grid;
     gap: var(--space-3);
-    padding: var(--space-4) 0;
-    border-bottom: 1px solid var(--line);
+    margin-top: var(--space-3);
+    padding: var(--space-4);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-card);
+    background: var(--surface);
+    animation: enter var(--dur-2) var(--ease-out) both;
   }
   .row {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
   }
-  .timer {
-    border: 0;
-    background: transparent;
-    min-height: 44px;
-  }
   .notice {
     margin-top: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    border: 1px solid var(--fg);
-    font-size: var(--step--1);
+  }
+  .e2e-note {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    margin: var(--space-4) auto 0;
+    padding: 5px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-control);
+    font-size: var(--step--2);
+    color: var(--muted);
+    text-align: center;
   }
   .messages {
     flex: 1;
     display: grid;
     align-content: start;
     gap: var(--space-4);
-    padding: var(--space-4) 0;
+    padding: var(--space-5) 0;
     overflow-y: auto;
-  }
-  .verified {
-    background: var(--fg);
-    color: var(--bg);
-    border-radius: var(--radius-control);
+    scrollbar-width: thin;
   }
 </style>

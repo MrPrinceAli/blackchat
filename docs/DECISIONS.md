@@ -140,7 +140,7 @@ Safety number tetap persis PRD §4.4 (tanpa label).
 - **Tab duplikat** dideteksi lewat `BroadcastChannel("bc-tab")`: saat dimuat, tab bertanya "siapa memegang tabId ini?" (tunggu 150 ms). Ada jawaban → tab duplikat → tabId & sessionKey baru, entri tab asli tidak disentuh. Tidak ada jawaban → refresh biasa → tabId lama dipakai lagi. Tab yang socket-nya diambil alih (4409) menampilkan "Akun ini sedang dibuka di tab lain." + "Gunakan di sini".
 - **Sisa umur akun setelah refresh** memakai `expiresAtLocal` (jam perangkat, disimpan terenkripsi) sampai `ready.remainingMs` dari server tiba dan mengoreksinya.
 - **WebSocket:** 4409 → `replaced` (tanpa reconnect otomatis); 4410 → layar Expired; 4401 dan putus jaringan → reconnect dengan backoff. Jika relay menolak handshake (misal akun sudah hangus), client terus mencoba sampai jam umur akun lokal habis lalu menampilkan Expired (diterima).
-- **Aktivitas** (`pointerdown`, `keydown`, `wheel`, `touchstart`, `scroll`) didengar di fase capture, pasif. Pengecekan kunci tiap 15 dtk dan saat `visibilitychange`/`focus`.
+- **Aktivitas** (`pointerdown`, `keydown`, `wheel`, `touchstart`; `scroll` dihapus oleh D-022) didengar di fase capture, pasif. Pengecekan kunci tiap 15 dtk dan saat `visibilitychange`/`focus`.
 - **E2E memakai relay lokal sungguhan** (`pnpm --filter @blackchat/relay e2e:serve`: `wrangler dev --env test`, D1/DO lokal yang dikosongkan tiap run). Route test baru `POST /__test/reset-limits` (method `LimiterDO.reset` tidak melakukan apa pun di produksi). E2E dijalankan satu worker karena jam relay dan rate limit dipakai bersama. Project WebKit opsional (`E2E_WEBKIT=1`).
 - **Belum aktif di W7:** daftar room & chat sungguhan (W8), hapus akun (W11; tombolnya dinonaktifkan), Verify (W11).
 **Konsekuensi:** Seluruh kriteria sesi PRD §15.2 (refresh, kunci 10 menit, refresh setelah tidak aktif, tab baru, tab duplikat, storage kosong setelah kunci/logout) diuji E2E di Chromium (320 px & desktop) dan WebKit.
@@ -193,3 +193,20 @@ Safety number tetap persis PRD §4.4 (tanpa label).
 - **`release-hash.yml`** (tag `v*`): build web dengan repository variable `VITE_RELAY_URL`, SHA-384 setiap file `dist/`, dan GitHub Release berisi `hashes.txt`.
 - **Web dideploy oleh integrasi Git Vercel** (Root Directory `apps/web`), bukan dari GitHub Actions, sehingga token Vercel tidak perlu disimpan di repo.
 - **`docs/acceptance.md`** memetakan seluruh butir PRD §15.2 ke test yang membuktikannya. **`SECURITY.md`** memuat model ancaman PRD §14 dengan status terbaru dan batasan yang diterima.
+
+## D-021 — UI v2: identitas visual & arah "arsip rahasia digital" yang lebih kaya (2026-10-05)
+**Konteks:** Pemilik proyek meminta tampilan setara lomba desain UI dan terasa canggih, plus logo di layar masuk dan favicon. PRD §10.2 melarang gradien, bayangan, dan animasi selain efek lebur; aturan itu terlalu ketat untuk permintaan ini.
+**Keputusan:**
+- **Tetap monokrom murni.** Semua nuansa adalah campuran `--fg`/`--bg` lewat `color-mix` (`--tint-*`, `--surface`, `--line-strong`, `--glass`); tidak ada warna lain. Tanpa bayangan.
+- **Gradien hanya untuk tekstur**: grid titik di latar (memudar ke tepi), crop marks di layar ≥ 760 px dan bingkai QR, kilau pindai pada blok tersensor dan tombol sibuk. Kaca buram (`backdrop-filter`) untuk composer, menu konteks, dan banner sesi.
+- **Logo**: gelembung pesan berpiksel dengan dua baris tersensor dan sudut yang melebur (gema PRD §10.4). Dipakai di Welcome, tile logo di Masuk/Daftar/Hangus, header Home, favicon SVG, ikon PNG (apple-touch, manifest 192/512/maskable), dan `og.png`. Ikon dibuat ulang lewat `pnpm readme:assets`.
+- **Animasi pendukung yang halus** (masuk layar, kedatangan bubble, hover/tekan, piksel logo yang terlepas pelan, pratinjau di Welcome) diperbolehkan; efek lebur tetap satu-satunya animasi mencolok. Semua dimatikan oleh `prefers-reduced-motion`. Animasi masuk hanya **fade (opacity)**, tanpa geser/skala: elemen yang bergerak tidak bisa langsung diklik dengan presisi (E2E melambat dari 4,5 menjadi 10 menit karena setiap klik menunggu elemen diam).
+- **Welcome** menampilkan pratinjau yang memakai `SecretBubble`/`BurnFx` asli dalam loop (`inert`, `aria-hidden`).
+- **`--font-code`** juga dipakai untuk label metadata kecil (`.eyebrow`, chip spesifikasi, status). Tetap huruf kecil/sentence case, tanpa label kapital semua.
+- **Pesan masuk tetap tanpa latar**: efek lebur menggambar ulang bubble dari gaya CSS-nya, dan latar solid akan ikut runtuh sebagai piksel.
+- Label/aria yang dipakai test tidak berubah. Test tema di smoke diubah untuk mengklik label kontrol tersegmentasi (radio tersembunyi secara visual).
+
+## D-022 — `scroll` bukan aktivitas sesi (2026-10-05)
+**Konteks:** PRD §5.4 menghitung `scroll` sebagai aktivitas, tetapi juga menyatakan bahwa membaca pesan masuk dan event server tidak dihitung. Event `scroll` juga muncul tanpa interaksi: scroll otomatis ke pesan baru, atau browser menggeser posisi scroll saat tinggi halaman berubah. Di 320×568, hal ini membatalkan peringatan kunci tanpa ada pengguna (ditemukan saat UI v2, D-021).
+**Keputusan:** `SESSION.ACTIVITY_EVENTS` = `pointerdown`, `keydown`, `wheel`, `touchstart`. Scroll oleh pengguna selalu diawali salah satu event itu (roda/trackpad, sentuhan, keyboard, atau drag scrollbar). Diuji E2E: scroll oleh program saat peringatan tampil tidak membatalkan peringatan.
+

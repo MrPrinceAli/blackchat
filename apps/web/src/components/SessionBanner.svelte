@@ -22,23 +22,50 @@
 {/if}
 
 <style>
+  /* Toast melayang di bawah: kaca buram, garis tegas. */
   .banner {
     position: fixed;
-    inset: auto 0 0 0;
+    inset: auto var(--space-4) max(var(--space-4), env(safe-area-inset-bottom)) var(--space-4);
     z-index: 200;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
-    max-width: var(--content-max);
+    max-width: calc(var(--content-max) - 2 * var(--space-4));
     margin: 0 auto;
-    padding: var(--space-4);
-    border-top: 1px solid var(--fg);
-    background: var(--bg);
+    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
+    border: 1px solid var(--fg);
+    border-radius: var(--radius-field);
+    background: var(--glass);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    animation: rise var(--dur-2) var(--ease-out) both;
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+    }
   }
   .quiet {
-    border-top-color: var(--line);
+    justify-content: center;
+    padding: var(--space-2) var(--space-4);
+    border-color: var(--line-strong);
+    border-radius: var(--radius-control);
     font-size: var(--step--1);
+  }
+  .quiet p::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: var(--space-2);
+    background: currentColor;
+    animation: blink 1s steps(2, start) infinite;
+  }
+  @keyframes blink {
+    to {
+      visibility: hidden;
+    }
   }
 </style>

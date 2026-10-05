@@ -1,5 +1,6 @@
 <script lang="ts">
   // Sisa umur akun (PRD §10.3). Menghitung mundur dari remainingMs server dengan performance.now() (PRD §13.3).
+  import { ACCOUNT } from '@blackchat/protocol';
   import { accountWarning, formatAccountClock } from '../lib/clock';
   import { strings } from '../lib/strings';
 
@@ -7,7 +8,13 @@
     remainingMs,
     onExpire,
     showWarning = false,
-  }: { remainingMs: number; onExpire?: () => void; showWarning?: boolean } = $props();
+    bar = false,
+  }: {
+    remainingMs: number;
+    onExpire?: () => void;
+    showWarning?: boolean;
+    bar?: boolean;
+  } = $props();
 
   let left = $state(0);
 
@@ -32,6 +39,12 @@
 <span class="clock code" role="timer" aria-label={strings.account.clockLabel}
   >{formatAccountClock(left)}</span
 >
+{#if bar}
+  <!-- Sisa umur dari 72 jam: menyusut seperti garis lebur pesan (dekoratif). -->
+  <span class="life" aria-hidden="true"
+    ><i style:transform={`scaleX(${Math.min(1, left / ACCOUNT.LIFETIME_MS)})`}></i></span
+  >
+{/if}
 {#if warning}
   <p class="warning" role="status">{warning}</p>
 {/if}
@@ -40,12 +53,21 @@
   .clock {
     font-size: var(--step--1);
   }
+  .life {
+    display: block;
+    height: 2px;
+    background: var(--line);
+    overflow: hidden;
+  }
+  .life i {
+    display: block;
+    height: 100%;
+    background: var(--fg);
+    transform-origin: left center;
+    transition: transform 1s linear;
+  }
   .warning {
-    /* Di header flex: turun ke baris sendiri di bawah jam. */
-    flex-basis: 100%;
-    order: 10;
     font-size: var(--step--1);
-    padding: var(--space-2) 0;
-    border-bottom: 1px solid var(--line);
+    padding-top: var(--space-2);
   }
 </style>
