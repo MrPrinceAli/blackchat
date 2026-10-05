@@ -1,13 +1,19 @@
 <script lang="ts">
+  import type { Ttl } from '@blackchat/protocol';
   import Composer from '../components/Composer.svelte';
+  import ContextMenu, { type MenuItem } from '../components/ContextMenu.svelte';
   import SecretBubble, { type BubbleStatus } from '../components/SecretBubble.svelte';
+  import TimerPicker from '../components/TimerPicker.svelte';
   import { app } from '../lib/app-state.svelte';
   import {
+    answerTtl,
     chat,
     closeRoom,
     markSeen,
+    proposeTtl,
     queueFront,
     removeMessage,
+    retractMessage,
     sendText,
     type ChatMessage,
   } from '../lib/chat.svelte';
@@ -16,15 +22,42 @@
   import { strings } from '../lib/strings';
 
   let headerMenu = $state(false);
+  let menu = $state<{ x: number; y: number; msgId: string } | null>(null);
+  let proposing = $state(false);
+  let proposal = $state<Ttl>(3);
 
   const front = $derived(queueFront(chat.messages));
   const watermark = $derived(app.userId.slice(-6));
 
   /** Status tampilan (PRD §7.1): pesan masuk di belakang antrean disensor "Menunggu giliran". */
   function displayStatus(m: ChatMessage): BubbleStatus {
+    if (m.status === 'retracted') return 'retracted';
     if (m.mine) return m.status;
     if (m.status === 'opened') return 'opened';
     return m.msgId === front ? 'delivered' : 'queued';
+  }
+
+  /** Menu konteks pesan sendiri (PRD §7.4): satu item "Batalkan pesan", dengan keterangan jika sudah dilihat. */
+  function menuItems(msgId: string): MenuItem[] {
+    const message = chat.messages.find((m) => m.msgId === msgId);
+    if (!message) return [];
+    return [
+      {
+        label: strings.chat.retract,
+        ...(message.status === 'opened' ? { note: strings.chat.retractSeen } : {}),
+        onSelect: () => void retractMessage(msgId),
+      },
+    ];
+  }
+
+  function openMenu(m: ChatMessage, x: number, y: number) {
+    if (m.mine && (m.status === 'delivered' || m.status === 'opened'))
+      menu = { x, y, msgId: m.msgId };
+  }
+
+  async function submitProposal() {
+    proposing = false;
+    await proposeTtl(proposal);
   }
 
   async function send(text: string) {
@@ -44,8 +77,15 @@
         >←</button
       >
       <span class="peer code">@{room.entry.peer.peerUsername}</span>
-      <span class="timer code" aria-label={strings.timer.label(room.ttl)}
-        >⧗ {strings.timer.seconds(room.ttl)}</span
+      <button
+        class="timer code"
+        type="button"
+        aria-label={`${strings.timer.label(room.ttl)}. ${strings.timer.propose}`}
+        aria-expanded={proposing}
+        onclick={() => {
+          proposal = room.ttl === 3 ? 5 : 3;
+          proposing = !proposing;
+        }}>⧗ {strings.timer.seconds(room.ttl)}</button
       >
       <button
         class="icon"
@@ -69,6 +109,39 @@
         >
       </div>
     {/if}
+    {#if proposing}
+      <section class="panel" aria-label={strings.timer.propose}>
+        <TimerPicker bind:value={proposal} label={strings.timer.propose} />
+        <div class="row">
+          <button
+            class="button primary"
+            type="button"
+            onclick={submitProposal}
+            disabled={proposal === room.ttl}
+          >
+            {strings.timer.submit}
+          </button>
+          <button class="button" type="button" onclick={() => (proposing = false)}
+            >{strings.timer.cancel}</button
+          >
+        </div>
+      </section>
+    {/if}
+    {#if room.pendingTtl && !room.pendingTtl.mine}
+      <div class="panel" role="alert">
+        <p>{strings.timer.proposal(room.entry.peer.peerUsername, room.pendingTtl.ttl)}</p>
+        <div class="row">
+          <button class="button primary" type="button" onclick={() => void answerTtl(true)}
+            >{strings.timer.accept}</button
+          >
+          <button class="button" type="button" onclick={() => void answerTtl(false)}
+            >{strings.timer.reject}</button
+          >
+        </div>
+      </div>
+    {:else if room.pendingTtl?.mine}
+      <p class="notice" role="status">{strings.timer.waiting(room.pendingTtl.ttl)}</p>
+    {/if}
     {#if chat.chatNotice}<p class="notice" role="status">{chat.chatNotice}</p>{/if}
 
     <section class="messages" aria-live="polite" use:noContextMenu>
@@ -82,13 +155,21 @@
           {watermark}
           onSeen={() => void markSeen(m.msgId)}
           onGone={() => removeMessage(m.msgId)}
+          onMenu={(x, y) => openMenu(m, x, y)}
         />
       {/each}
     </section>
 
     <Composer onSend={send} />
 
-    <!-- Menu konteks "Batalkan pesan" diaktifkan di W9. -->
+    {#if menu}
+      <ContextMenu
+        x={menu.x}
+        y={menu.y}
+        items={menuItems(menu.msgId)}
+        onClose={() => (menu = null)}
+      />
+    {/if}
   </main>
 {/if}
 
@@ -125,6 +206,22 @@
     justify-content: flex-end;
     padding: var(--space-3) 0;
     border-bottom: 1px solid var(--line);
+  }
+  .panel {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-4) 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .timer {
+    border: 0;
+    background: transparent;
+    min-height: 44px;
   }
   .notice {
     margin-top: var(--space-3);

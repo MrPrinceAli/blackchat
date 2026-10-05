@@ -74,6 +74,10 @@ export const strings = {
     reject: 'Tolak',
     waiting: (ttl: number) => `Menunggu persetujuan timer ${ttl} detik.`,
     simultaneous: (ttl: number) => `Kalian memulai bersamaan. Timer yang berlaku ${ttl} detik.`,
+    changed: (ttl: number) => `Timer sekarang ${ttl} detik.`,
+    rejected: 'Usulan timer ditolak.',
+    submit: 'Usulkan',
+    cancel: 'Batal',
   },
 
   chat: {

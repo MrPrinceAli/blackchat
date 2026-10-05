@@ -12,8 +12,8 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 | W5 | Relay: InboxDO & RoomDO | Selesai, merged | #11 |
 | W6 | Web: fondasi & UI statis | Selesai, merged | #12 |
 | W7 | Web: akun, sesi & koneksi | Selesai, merged | #13 |
-| W8 | Chat teks end-to-end | Selesai | branch `w8-chat-teks` |
-| W9 | Batalkan pesan & kesepakatan timer | Belum mulai | — |
+| W8 | Chat teks end-to-end | Selesai, merged | #14 |
+| W9 | Batalkan pesan & kesepakatan timer | Selesai | branch `w9-batal-timer` |
 | W10 | Gambar | Belum mulai | — |
 | W11 | Kontak, verifikasi, blokir & settings | Belum mulai | — |
 | W12 | Rilis: deploy, E2E penuh, dokumen | Belum mulai | — |
@@ -134,3 +134,11 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 - Test: 49 unit web (+ penyaringan entri room dengan kripto sungguhan, diuji mutasi) + 34 E2E (7 baru untuk chat
   dengan dua pengguna, di 320 px & desktop).
 - Keputusan baru: D-016.
+
+### 2026-10-05 — W9 Batalkan pesan & kesepakatan timer
+- Selesai: RoomDO `retract` & `ttl` (usul/setuju/tolak) + event ke lawan; menu konteks "Batalkan pesan"
+  (klik kanan, tekan lama, Shift+F10) dengan keterangan "Sudah dilihat…"; tombstone "Pesan dibatalkan";
+  panel usulan timer di header, banner Setuju/Tolak, "Menunggu persetujuan…", usulan bertahan setelah refresh.
+- Test: 88 di relay (8 baru, 4 pemeriksaan diuji mutasi: semuanya tertangkap) + 42 E2E (4 baru: batalkan di kedua
+  sisi & server, menu hanya pesan sendiri, keyboard, timer hanya berlaku setelah disetujui, mulai bersamaan).
+- Keputusan baru: D-017.

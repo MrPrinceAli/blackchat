@@ -38,7 +38,7 @@ export interface RoomEntry {
   bump: number;
 }
 
-export type MessageStatus = 'sending' | 'delivered' | 'opened';
+export type MessageStatus = 'sending' | 'delivered' | 'opened' | 'retracted';
 
 export interface ChatMessage {
   msgId: string;
@@ -58,6 +58,8 @@ export interface OpenRoom {
   ttl: Ttl;
   /** Header tentang diri sendiri yang disegel ke lawan; ikut dikirim agar room muncul lagi jika lawan melupakannya. */
   headerForPeer: string;
+  /** Usulan timer yang menunggu jawaban (PRD §7.3). */
+  pendingTtl: { ttl: Ttl; mine: boolean } | null;
 }
 
 export const chat = $state<{
@@ -348,6 +350,7 @@ async function enterRoom(inboxRoomId: string, ttl: Ttl | null): Promise<void> {
     headerForPeer: base64urlEncode(
       s.crypto.sealHeader(base64urlDecode(entry.peer.peerXPk), headerAboutMe(s)),
     ),
+    pendingTtl: null,
   };
   rememberView('chat', entry.inboxRoomId);
   navigate('chat');
@@ -385,10 +388,14 @@ export async function syncOpenRoom(): Promise<void> {
   });
   if (chat.open !== open) return;
   open.ttl = result.ttl;
+  open.pendingTtl = result.pendingTtl ?? null;
 
   // eslint-disable-next-line svelte/prefer-svelte-reactivity -- variabel lokal
   const present = new Set(result.messages.map((m) => m.msgId));
-  const kept = chat.messages.filter((m) => m.status === 'sending' || present.has(m.msgId));
+  // Tombstone "Pesan dibatalkan" tetap tampil sampai bubble selesai (PRD §7.1).
+  const kept = chat.messages.filter(
+    (m) => m.status === 'sending' || m.status === 'retracted' || present.has(m.msgId),
+  );
   for (const m of chat.messages) if (!kept.includes(m)) m.text = null;
 
   for (const record of result.messages) {
@@ -545,6 +552,77 @@ export async function markSeen(msgId: string): Promise<void> {
   open.entry.unread = Math.max(0, open.entry.unread - 1);
 }
 
+/**
+ * Batalkan pesan sendiri (PRD §7.4): server menghapus record + chunk dan memberi tahu lawan.
+ * Pesan sendiri hilang langsung (PRD §7.1).
+ */
+export async function retractMessage(msgId: string): Promise<void> {
+  const s = activeSession();
+  const open = chat.open;
+  const message = chat.messages.find((m) => m.msgId === msgId);
+  if (!s || !open || !message?.mine) return;
+  const op = { kind: 'retract' as const, roomId: open.keys.roomId, msgId };
+  try {
+    await s.connection.request({
+      t: 'room.retract',
+      op,
+      auth: s.crypto.roomAuth(open.keys, op),
+      peerUserId: open.entry.peer.peerUserId,
+      peerInboxRoomId: open.keys.peerInboxRoomId,
+    });
+  } catch (error) {
+    // Sudah melebur atau dibatalkan di tempat lain: tetap dibuang dari tampilan.
+    if (!(error instanceof RequestError && error.code === 'not_found')) {
+      chat.chatNotice = strings.chat.sendFailed;
+      return;
+    }
+  }
+  removeMessage(msgId);
+}
+
+// ================================================================ kesepakatan timer (PRD §7.3)
+
+async function ttlRequest(action: 'propose' | 'accept' | 'reject', ttl: Ttl): Promise<Ttl | null> {
+  const s = activeSession();
+  const open = chat.open;
+  if (!s || !open) return null;
+  const op = { kind: 'ttl' as const, roomId: open.keys.roomId, action, ttl };
+  try {
+    const result = await s.connection.request({
+      t: 'room.ttl',
+      op,
+      auth: s.crypto.roomAuth(open.keys, op),
+      peerUserId: open.entry.peer.peerUserId,
+      peerInboxRoomId: open.keys.peerInboxRoomId,
+    });
+    return result.ttl;
+  } catch {
+    // Usulan berganti di tengah jalan atau koneksi putus: ambil keadaan terbaru dari server.
+    await syncOpenRoom().catch(() => undefined);
+    return null;
+  }
+}
+
+/** Usulkan timer baru; berlaku setelah lawan menekan Setuju. */
+export async function proposeTtl(ttl: Ttl): Promise<void> {
+  const open = chat.open;
+  if (!open || ttl === open.ttl) return;
+  if ((await ttlRequest('propose', ttl)) !== null && chat.open === open)
+    open.pendingTtl = { ttl, mine: true };
+}
+
+/** Jawab usulan lawan. */
+export async function answerTtl(accept: boolean): Promise<void> {
+  const open = chat.open;
+  const pending = open?.pendingTtl;
+  if (!open || !pending || pending.mine) return;
+  const ttl = await ttlRequest(accept ? 'accept' : 'reject', pending.ttl);
+  if (ttl === null || chat.open !== open) return;
+  open.ttl = ttl;
+  open.pendingTtl = null;
+  if (accept) chat.chatNotice = strings.timer.changed(ttl);
+}
+
 /** Bubble selesai melebur (termasuk animasi 600 ms dan "Dilebur" 3 dtk): buang dari memori. */
 export function removeMessage(msgId: string): void {
   const message = chat.messages.find((m) => m.msgId === msgId);
@@ -578,8 +656,31 @@ function handleEvent(event: EventFrame): void {
       }
       return;
     }
-    default:
-      // retracted & ttl_* di W9.
+    case 'retracted': {
+      if (!isOpen) return;
+      const message = chat.messages.find((m) => m.msgId === payload.msgId && !m.mine);
+      if (message) {
+        // Plaintext langsung dibuang; bubble menampilkan "Pesan dibatalkan" 3 dtk.
+        message.text = null;
+        message.status = 'retracted';
+      }
+      return;
+    }
+    case 'ttl_proposed':
+      if (isOpen && chat.open) chat.open.pendingTtl = { ttl: payload.ttl, mine: false };
+      return;
+    case 'ttl_changed':
+      if (isOpen && chat.open) {
+        chat.open.ttl = payload.ttl;
+        chat.open.pendingTtl = null;
+        chat.chatNotice = strings.timer.changed(payload.ttl);
+      }
+      return;
+    case 'ttl_rejected':
+      if (isOpen && chat.open) {
+        chat.open.pendingTtl = null;
+        chat.chatNotice = strings.timer.rejected;
+      }
       return;
   }
 }

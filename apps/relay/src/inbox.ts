@@ -321,10 +321,34 @@ export class InboxDO extends DurableObject<Env> {
       case 'room.purge':
         return this.room(frame.op.roomId).purge(frame.op, frame.auth);
 
-      // Diisi di W9 (retract, ttl) dan W10 (getChunk).
+      case 'room.retract': {
+        const result = await this.room(frame.op.roomId).retract(frame.op, frame.auth);
+        if (result.ok) {
+          await this.peer(frame.peerUserId).event(frame.peerUserId, frame.peerInboxRoomId, {
+            t: 'retracted',
+            msgId: frame.op.msgId,
+          });
+        }
+        return result;
+      }
+
+      case 'room.ttl': {
+        const result = await this.room(frame.op.roomId).ttl(frame.op, frame.auth);
+        if (result.ok) {
+          const { action, ttl } = frame.op;
+          const payload: EventPayload =
+            action === 'propose'
+              ? { t: 'ttl_proposed', ttl }
+              : action === 'accept'
+                ? { t: 'ttl_changed', ttl }
+                : { t: 'ttl_rejected', ttl };
+          await this.peer(frame.peerUserId).event(frame.peerUserId, frame.peerInboxRoomId, payload);
+        }
+        return result;
+      }
+
+      // Diisi di W10 (chunk gambar).
       case 'room.getChunk':
-      case 'room.retract':
-      case 'room.ttl':
         return fail(ERRORS.INVALID);
     }
   }

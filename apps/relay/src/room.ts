@@ -11,15 +11,18 @@ import {
   MESSAGE,
   openedOp,
   purgeOp,
+  retractOp,
   roomAuth as roomAuthValidator,
   sendOp,
   syncOp,
+  ttlOp,
   type ErrorCode,
   type InitOp,
   type InitResult,
   type OpenedOp,
   type OpenedResult,
   type PurgeOp,
+  type RetractOp,
   type RoomAuth,
   type RoomOp,
   type SendOp,
@@ -28,6 +31,8 @@ import {
   type SyncOp,
   type SyncResult,
   type Ttl,
+  type TtlOp,
+  type TtlResult,
   type Validator,
 } from '@blackchat/protocol';
 import { now } from './clock.js';
@@ -75,7 +80,13 @@ CREATE TABLE IF NOT EXISTS used_nonces (
 );
 `;
 
-type Settings = { ttl: Ttl; expire_at: number; next_seq: number };
+type Settings = {
+  ttl: Ttl;
+  expire_at: number;
+  next_seq: number;
+  /** Usulan timer yang menunggu jawaban (PRD §7.3). */
+  pending: { ttl: Ttl; by: string } | null;
+};
 
 interface MessageRow extends Record<string, SqlStorageValue> {
   msg_id: string;
@@ -113,10 +124,13 @@ export class RoomDO extends DurableObject<Env> {
   private settings(): Settings {
     const rows = this.sql.exec<{ k: string; v: string }>('SELECT k, v FROM settings').toArray();
     const map = new Map(rows.map((r) => [r.k, r.v]));
+    const pendingTtl = map.get('pending_ttl');
+    const pendingBy = map.get('pending_by');
     return {
       ttl: Number(map.get('ttl')) as Ttl,
       expire_at: Number(map.get('expire_at')),
       next_seq: Number(map.get('next_seq')),
+      pending: pendingTtl && pendingBy ? { ttl: Number(pendingTtl) as Ttl, by: pendingBy } : null,
     };
   }
 
@@ -317,7 +331,17 @@ export class RoomDO extends DurableObject<Env> {
       return message;
     });
     const settings = this.settings();
-    return ok({ messages, ttl: settings.ttl, expiresInMs: Math.max(0, settings.expire_at - t) });
+    const result: SyncResult = {
+      messages,
+      ttl: settings.ttl,
+      expiresInMs: Math.max(0, settings.expire_at - t),
+    };
+    if (settings.pending)
+      result.pendingTtl = {
+        ttl: settings.pending.ttl,
+        mine: settings.pending.by === auth.memberTag,
+      };
+    return ok(result);
   }
 
   /** Hanya penerima. Timer mulai saat pertama dibuka dan tidak bisa dihentikan (PRD §6.2, §7.2). */
@@ -350,6 +374,51 @@ export class RoomDO extends DurableObject<Env> {
     }
     await this.scheduleAlarm();
     return ok({ opened });
+  }
+
+  /**
+   * Hanya pengirim: hapus pesan + chunk dalam satu transaksi (PRD §6.2, §7.4). Berlaku selama pesan belum
+   * melebur, termasuk yang sudah dibuka atau masih diunggah.
+   */
+  async retract(op: RetractOp, auth: RoomAuth): Promise<RoomResult<Record<string, never>>> {
+    const authorized = this.authorize(retractOp, op, auth);
+    if (!authorized.ok) return authorized;
+    const row = this.sql
+      .exec<{ from_tag: string; burn_at: number | null }>(
+        'SELECT from_tag, burn_at FROM messages WHERE msg_id = ?',
+        authorized.value.msgId,
+      )
+      .toArray()[0];
+    if (!row || (row.burn_at !== null && row.burn_at <= now())) return fail(ERRORS.NOT_FOUND);
+    if (row.from_tag !== auth.memberTag) return fail(ERRORS.FORBIDDEN);
+    this.deleteMessages('msg_id = ?', authorized.value.msgId);
+    await this.scheduleAlarm();
+    return ok({});
+  }
+
+  /**
+   * Kesepakatan timer (PRD §7.3): usulan dari satu anggota, jawaban hanya dari anggota lain. Jawaban harus menyebut
+   * nilai usulan yang dijawab, supaya tidak menyetujui usulan yang sudah berganti (D-009).
+   */
+  async ttl(op: TtlOp, auth: RoomAuth): Promise<RoomResult<TtlResult>> {
+    const authorized = this.authorize(ttlOp, op, auth);
+    if (!authorized.ok) return authorized;
+    const { action, ttl } = authorized.value;
+    const settings = this.settings();
+    if (action === 'propose') {
+      if (ttl === settings.ttl) return fail(ERRORS.INVALID);
+      this.setSetting('pending_ttl', ttl);
+      this.setSetting('pending_by', auth.memberTag);
+      return ok({ ttl: settings.ttl });
+    }
+    const pending = settings.pending;
+    if (!pending || pending.ttl !== ttl) return fail(ERRORS.CONFLICT);
+    if (pending.by === auth.memberTag) return fail(ERRORS.FORBIDDEN);
+    this.ctx.storage.transactionSync(() => {
+      if (action === 'accept') this.setSetting('ttl', ttl);
+      this.sql.exec("DELETE FROM settings WHERE k IN ('pending_ttl', 'pending_by')");
+    });
+    return ok({ ttl: action === 'accept' ? ttl : settings.ttl });
   }
 
   /** Anggota mana pun: hapus semua pesan & chunk (hapus akun, blokir; PRD §6.2). */
