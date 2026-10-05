@@ -217,3 +217,33 @@ export function purgeFrame(room: TestRoom, me: 'a' | 'b') {
   const op = { kind: 'purge' as const, roomId: room.roomId };
   return { t: 'room.purge', op, auth: authFor(room[me], op) };
 }
+
+export function retractFrame(room: TestRoom, me: 'a' | 'b', peer: TestAccount, msgId: string) {
+  const other = room[me === 'a' ? 'b' : 'a'];
+  const op = { kind: 'retract' as const, roomId: room.roomId, msgId };
+  return {
+    t: 'room.retract',
+    op,
+    auth: authFor(room[me], op),
+    peerUserId: peer.userId,
+    peerInboxRoomId: other.inboxRoomId,
+  };
+}
+
+export function ttlFrame(
+  room: TestRoom,
+  me: 'a' | 'b',
+  peer: TestAccount,
+  action: 'propose' | 'accept' | 'reject',
+  ttl: Ttl,
+) {
+  const other = room[me === 'a' ? 'b' : 'a'];
+  const op = { kind: 'ttl' as const, roomId: room.roomId, action, ttl };
+  return {
+    t: 'room.ttl',
+    op,
+    auth: authFor(room[me], op),
+    peerUserId: peer.userId,
+    peerInboxRoomId: other.inboxRoomId,
+  };
+}

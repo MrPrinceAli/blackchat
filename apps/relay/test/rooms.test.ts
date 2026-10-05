@@ -17,10 +17,12 @@ import {
   newRoom,
   openedFrame,
   purgeFrame,
+  retractFrame,
   sendFrame,
   sendOp,
   syncFrame,
   TestSocket,
+  ttlFrame,
   type TestRoom,
 } from './ws.js';
 
@@ -430,18 +432,10 @@ describe('batas (PRD §6.2, §6.4)', () => {
     });
   });
 
-  it('frame belum didukung (W9/W10) dibalas invalid', async () => {
+  it('frame belum didukung (W10) dibalas invalid', async () => {
     const { room, a } = await pair();
-    const op = { kind: 'retract' as const, roomId: room.roomId, msgId: b64(16) };
-    expect(
-      await a.request({
-        t: 'room.retract',
-        op,
-        auth: authFor(room.a, op),
-        peerUserId: '0'.repeat(32),
-        peerInboxRoomId: room.b.inboxRoomId,
-      }),
-    ).toMatchObject({
+    const op = { kind: 'getChunk' as const, roomId: room.roomId, msgId: b64(16), idx: 0 };
+    expect(await a.request({ t: 'room.getChunk', op, auth: authFor(room.a, op) })).toMatchObject({
       ok: false,
       error: 'invalid',
     });
@@ -583,5 +577,139 @@ describe('privasi storage (PRD §12 aturan 3, 4; D-001)', () => {
     const inboxDump = JSON.stringify(await dumpSql(inbox(alice.userId), ['rooms']));
     expect(inboxDump).not.toContain(bob.userId);
     expect(base64urlEncode(new Uint8Array(0))).toBe('');
+  });
+});
+
+describe('batalkan pesan (PRD §6.2, §7.4)', () => {
+  it('pengirim membatalkan: record & chunk hilang, lawan menerima event retracted', async () => {
+    const { alice, bob, room, a } = await pair();
+    const op = sendOp(room);
+    await a.request(sendFrame(room, 'a', bob, op));
+    const b = await TestSocket.connect(bob);
+    expect(await a.request(retractFrame(room, 'a', bob, op.msgId))).toMatchObject({ ok: true });
+    expect(await b.next((f) => f.t === 'event')).toEqual({
+      t: 'event',
+      inboxRoomId: room.b.inboxRoomId,
+      payload: { t: 'retracted', msgId: op.msgId },
+    });
+    expect((await dumpSql(roomStub(room.roomId), ['messages'])).messages).toHaveLength(0);
+    expect(alice.userId).toBeTruthy();
+  });
+
+  it('hanya pengirim yang bisa membatalkan; pesan tak dikenal → not_found', async () => {
+    const { alice, bob, room, a } = await pair();
+    const op = sendOp(room);
+    await a.request(sendFrame(room, 'a', bob, op));
+    const b = await TestSocket.connect(bob);
+    expect(await b.request(retractFrame(room, 'b', alice, op.msgId))).toMatchObject({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(await a.request(retractFrame(room, 'a', bob, b64(16)))).toMatchObject({
+      ok: false,
+      error: 'not_found',
+    });
+    expect((await dumpSql(roomStub(room.roomId), ['messages'])).messages).toHaveLength(1);
+  });
+
+  it('pesan yang sudah dibuka tetap bisa dibatalkan selama belum melebur', async () => {
+    const { alice, bob, room, a } = await pair(10);
+    const op = sendOp(room, { ttl: 10 });
+    await a.request(sendFrame(room, 'a', bob, op));
+    const b = await TestSocket.connect(bob);
+    await b.request(openedFrame(room, 'b', alice, [op.msgId]));
+    expect(await a.request(retractFrame(room, 'a', bob, op.msgId))).toMatchObject({ ok: true });
+    await advanceClock(10_300);
+    expect(await a.request(retractFrame(room, 'a', bob, sendOp(room).msgId))).toMatchObject({
+      ok: false,
+      error: 'not_found',
+    });
+  });
+
+  it('pesan yang sudah melebur tidak bisa dibatalkan', async () => {
+    const { alice, bob, room, a } = await pair(3);
+    const op = sendOp(room, { ttl: 3 });
+    await a.request(sendFrame(room, 'a', bob, op));
+    const b = await TestSocket.connect(bob);
+    await b.request(openedFrame(room, 'b', alice, [op.msgId]));
+    await advanceClock(3_400);
+    expect(await a.request(retractFrame(room, 'a', bob, op.msgId))).toMatchObject({
+      ok: false,
+      error: 'not_found',
+    });
+  });
+});
+
+describe('kesepakatan timer (PRD §7.3)', () => {
+  it('usulan → lawan setuju → timer berubah; kedua pihak diberi tahu', async () => {
+    const { alice, bob, room, a } = await pair(5);
+    const b = await TestSocket.connect(bob);
+    expect(await a.request(ttlFrame(room, 'a', bob, 'propose', 3))).toMatchObject({
+      ok: true,
+      data: { ttl: 5 },
+    });
+    expect(await b.next((f) => f.t === 'event')).toMatchObject({
+      payload: { t: 'ttl_proposed', ttl: 3 },
+    });
+
+    const synced = (await b.request(syncFrame(room, 'b'))) as { ok: true; data: SyncResult };
+    expect(synced.data).toMatchObject({ ttl: 5, pendingTtl: { ttl: 3, mine: false } });
+    const own = (await a.request(syncFrame(room, 'a'))) as { ok: true; data: SyncResult };
+    expect(own.data.pendingTtl).toEqual({ ttl: 3, mine: true });
+
+    expect(await b.request(ttlFrame(room, 'b', alice, 'accept', 3))).toMatchObject({
+      ok: true,
+      data: { ttl: 3 },
+    });
+    expect(await a.next((f) => f.t === 'event')).toMatchObject({
+      payload: { t: 'ttl_changed', ttl: 3 },
+    });
+    const after = (await a.request(syncFrame(room, 'a'))) as { ok: true; data: SyncResult };
+    expect(after.data.ttl).toBe(3);
+    expect(after.data.pendingTtl).toBeUndefined();
+  });
+
+  it('pengusul tidak bisa menyetujui usulannya sendiri; timer belum berubah', async () => {
+    const { bob, room, a } = await pair(5);
+    await a.request(ttlFrame(room, 'a', bob, 'propose', 10));
+    expect(await a.request(ttlFrame(room, 'a', bob, 'accept', 10))).toMatchObject({
+      ok: false,
+      error: 'forbidden',
+    });
+    const r = (await a.request(syncFrame(room, 'a'))) as { ok: true; data: SyncResult };
+    expect(r.data.ttl).toBe(5);
+  });
+
+  it('menjawab nilai yang sudah berganti → conflict; tolak membersihkan usulan', async () => {
+    const { alice, bob, room, a } = await pair(5);
+    const b = await TestSocket.connect(bob);
+    await a.request(ttlFrame(room, 'a', bob, 'propose', 3));
+    await a.request(ttlFrame(room, 'a', bob, 'propose', 7));
+    expect(await b.request(ttlFrame(room, 'b', alice, 'accept', 3))).toMatchObject({
+      ok: false,
+      error: 'conflict',
+    });
+    expect(await b.request(ttlFrame(room, 'b', alice, 'reject', 7))).toMatchObject({
+      ok: true,
+      data: { ttl: 5 },
+    });
+    expect(await a.next((f) => f.t === 'event' && f.payload.t === 'ttl_rejected')).toMatchObject({
+      payload: { t: 'ttl_rejected', ttl: 7 },
+    });
+    const r = (await a.request(syncFrame(room, 'a'))) as { ok: true; data: SyncResult };
+    expect(r.data).toMatchObject({ ttl: 5 });
+    expect(r.data.pendingTtl).toBeUndefined();
+    expect(await b.request(ttlFrame(room, 'b', alice, 'accept', 7))).toMatchObject({
+      ok: false,
+      error: 'conflict',
+    });
+  });
+
+  it('usulan yang sama dengan timer berlaku ditolak', async () => {
+    const { bob, room, a } = await pair(5);
+    expect(await a.request(ttlFrame(room, 'a', bob, 'propose', 5))).toMatchObject({
+      ok: false,
+      error: 'invalid',
+    });
   });
 });

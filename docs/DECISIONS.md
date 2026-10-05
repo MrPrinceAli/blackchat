@@ -158,3 +158,9 @@ Safety number tetap persis PRD §4.4 (tanpa label).
 - **Room terakhir** (`inboxRoomId` sendiri) disimpan terenkripsi di sesi; refresh membukanya kembali setelah koneksi siap.
 - **Menu konteks** dinonaktifkan sampai W9 (batalkan pesan). Pesan gambar diabaikan sampai W10. Blokir dan penyimpanan status verifikasi di W11. Layar Verify sudah menampilkan safety number sungguhan.
 **Konsekuensi:** Kriteria PRD §15.2 untuk chat teks diuji E2E dengan dua pengguna (320 px & desktop): pesan saat offline, timer saat terlihat ±500 ms dua arah, tab ditutup, 5 pesan berurutan, XSS, refresh room + timer akurat, dan username yang didaftarkan ulang.
+
+## D-017 — Detail batalkan pesan & kesepakatan timer (2026-10-05)
+**Keputusan:**
+- **Batalkan:** hanya pengirim (`from_tag`), selama pesan belum melebur (`burn_at` belum lewat), termasuk pesan yang sudah dibuka. Record + chunk dihapus dalam satu transaksi; lawan menerima event `retracted`. Di client, pesan sendiri hilang langsung. Di sisi lawan, plaintext langsung dibuang dan bubble menampilkan "Pesan dibatalkan" selama 3 dtk. Menu hanya muncul untuk pesan sendiri yang sudah terkirim (`delivered`/`opened`); pembatalan saat upload gambar menyusul di W10.
+- **Timer:** usulan disimpan di `settings` RoomDO (`pending_ttl`, `pending_by` = memberTag pengusul). Usulan baru dari pihak mana pun menggantikan yang lama. Usulan yang sama dengan timer berlaku ditolak (`invalid`). Jawaban harus dari anggota lain (`forbidden`) dan harus menyebut nilai usulan yang masih berlaku (`conflict` jika berganti). `accept` mengubah timer room; `reject` hanya membersihkan usulan. Event: `ttl_proposed`, `ttl_changed`, `ttl_rejected`. `sync` membawa `pendingTtl` (dengan `mine`) sehingga usulan tetap terlihat setelah refresh.
+- **Pesan yang sudah terkirim tidak berubah timernya** setelah timer room diganti: setiap pesan membawa ttl-nya sendiri (PRD §7.3), dan antrean tetap berurutan.
