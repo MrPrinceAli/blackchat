@@ -143,8 +143,14 @@ export async function newUser(
 export async function startChat(page: Page, peer: string, ttl: 3 | 5 | 7 | 10 = 3): Promise<void> {
   await page.getByLabel('Cari username').fill(peer);
   await page.getByLabel('Cari username').press('Enter');
-  await page.getByText(`${ttl} dtk`, { exact: true }).click();
-  await page.getByRole('button', { name: 'Mulai percakapan' }).click();
+  // Percakapan yang sudah ada langsung dibuka; selain itu muncul panel pilih timer.
+  const start = page.getByRole('button', { name: 'Mulai percakapan' });
+  const header = page.getByRole('button', { name: 'Menu percakapan' });
+  await expect(start.or(header)).toBeVisible();
+  if (await start.isVisible()) {
+    await page.getByText(`${ttl} dtk`, { exact: true }).click();
+    await start.click();
+  }
   await expect(page.getByText(`@${peer}`, { exact: true })).toBeVisible();
 }
 
@@ -156,14 +162,28 @@ export async function send(page: Page, text: string): Promise<void> {
   await expect(page.getByText('Mengirim...')).toHaveCount(0);
 }
 
+/**
+ * Buka room dengan `peer` dari daftar. Setelah refresh, aplikasi bisa membuka ulang room terakhir sendiri;
+ * dalam kasus itu klik tidak diperlukan (dan tombol daftar bisa hilang di tengah klik).
+ */
 export async function openRoomWith(page: Page, peer: string): Promise<void> {
-  await page.getByRole('button', { name: new RegExp(`^@${peer}`) }).click();
+  const composer = page.getByLabel('Tulis pesan');
+  const room = page.getByRole('button', { name: new RegExp(`^@${peer}`) });
+  await expect(composer.or(room)).toBeVisible();
+  if (!(await composer.isVisible())) await room.click({ timeout: 5_000 }).catch(() => undefined);
+  await expect(composer).toBeVisible();
   await expect(page.getByText(`@${peer}`, { exact: true })).toBeVisible();
 }
 
 export async function logout(page: Page): Promise<void> {
-  const back = page.getByRole('button', { name: 'Kembali' });
-  if (await back.isVisible()) await back.click();
+  // Kembali sampai Home (bisa dari Verify → Chat → Home).
+  for (
+    let i = 0;
+    i < 3 && !(await page.getByRole('button', { name: 'Pengaturan' }).isVisible());
+    i++
+  ) {
+    await page.getByRole('button', { name: 'Kembali' }).click();
+  }
   await page.getByRole('button', { name: 'Pengaturan' }).click();
   await page.getByRole('button', { name: 'Keluar' }).click();
   await expect(page.getByRole('heading', { name: 'blackchat' })).toBeVisible();

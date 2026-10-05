@@ -285,6 +285,24 @@ describe('update bertanda tangan (PRD §5.2)', () => {
     expect(data.contacts).toBe(jump.contacts);
   });
 
+  it('blob kontak harus kelipatan 4 KB agar ukurannya tidak membocorkan jumlah kontak (PRD §4.8)', async () => {
+    const account = await registered();
+    for (const [size, status] of [
+      [AEAD_OVERHEAD + CONTACTS.PAD_BLOCK, 200],
+      [AEAD_OVERHEAD + CONTACTS.PAD_BLOCK + 1, 400],
+      [AEAD_OVERHEAD + 100, 400],
+    ] as const) {
+      const body = await signed(account, LABELS.REQ_CONTACTS, {
+        userId: account.userId,
+        contacts: random(size),
+        seq: size,
+      });
+      expect((await call('PUT', '/v1/account/contacts', { body })).status, String(size)).toBe(
+        status,
+      );
+    }
+  });
+
   it('menolak tanda tangan akun lain, label lain, atau field yang diubah', async () => {
     const account = await registered();
     const other = await registered();

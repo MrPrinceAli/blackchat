@@ -1,26 +1,79 @@
 <script lang="ts">
-  import { end } from '../lib/account';
+  import { AccountError, changePassword, deleteAccount, end } from '../lib/account';
   import { app } from '../lib/app-state.svelte';
+  import { purgeAllRooms } from '../lib/chat.svelte';
   import { navigate } from '../lib/router.svelte';
   import { strings } from '../lib/strings';
   import { readTheme, saveTheme, type ThemePreference } from '../lib/theme';
 
   let theme = $state<ThemePreference>(readTheme());
-  let confirming = $state(false);
-  let typed = $state('');
-
   const options: { value: ThemePreference; label: string }[] = [
     { value: 'system', label: strings.settings.themeSystem },
     { value: 'dark', label: strings.settings.themeDark },
     { value: 'light', label: strings.settings.themeLight },
   ];
-
   $effect(() => saveTheme(theme));
+
+  // Ganti password (PRD §4.3).
+  let changing = $state(false);
+  let current = $state('');
+  let next = $state('');
+  let repeat = $state('');
+  let passwordBusy = $state(false);
+  let passwordMessage = $state<string | null>(null);
+
+  async function submitPassword(event: SubmitEvent) {
+    event.preventDefault();
+    if (passwordBusy) return;
+    passwordBusy = true;
+    passwordMessage = null;
+    try {
+      await changePassword(current, next, repeat);
+      current = next = repeat = '';
+      changing = false;
+      passwordMessage = strings.settings.passwordChanged;
+    } catch (e) {
+      const code = e instanceof AccountError ? e.code : 'generic';
+      const map: Partial<Record<AccountError['code'], string>> = {
+        credentials: strings.settings.wrongPassword,
+        too_short: strings.register.errors.tooShort,
+        same_as_username: strings.register.errors.sameAsUsername,
+        common: strings.register.errors.common,
+        mismatch: strings.register.errors.mismatch,
+      };
+      passwordMessage = map[code] ?? strings.register.errors.generic;
+    } finally {
+      passwordBusy = false;
+    }
+  }
+
+  // Hapus akun sekarang (PRD §5.2, §10.3): ketik username → purge setiap room → DELETE.
+  let confirming = $state(false);
+  let typed = $state('');
+  let deleting = $state<{ done: number; total: number } | null>(null);
+  let deleteError = $state<string | null>(null);
+
+  async function remove() {
+    if (typed !== app.username || deleting) return;
+    deleting = { done: 0, total: 0 };
+    deleteError = null;
+    try {
+      await purgeAllRooms((done, total) => (deleting = { done, total }));
+      await deleteAccount();
+    } catch {
+      deleteError = strings.settings.deleteFailed;
+      deleting = null;
+    }
+  }
 </script>
 
 <main class="screen">
-  <button class="back" type="button" onclick={() => navigate('home')} aria-label={strings.chat.back}
-    >←</button
+  <button
+    class="back"
+    type="button"
+    onclick={() => navigate('home')}
+    aria-label={strings.chat.back}
+    disabled={deleting !== null}>←</button
   >
   <h1>{strings.settings.title}</h1>
 
@@ -35,17 +88,79 @@
   </fieldset>
 
   <div class="actions">
-    <button class="button" type="button">{strings.settings.changePassword}</button>
-    <button class="button" type="button" onclick={() => void end('logout')}
-      >{strings.settings.signOut}</button
+    {#if changing}
+      <form class="form" onsubmit={submitPassword} novalidate>
+        <div class="field">
+          <label for="pw-current">{strings.settings.currentPassword}</label>
+          <input
+            id="pw-current"
+            type="password"
+            autocomplete="current-password"
+            bind:value={current}
+            disabled={passwordBusy}
+          />
+        </div>
+        <div class="field">
+          <label for="pw-next">{strings.settings.newPassword}</label>
+          <input
+            id="pw-next"
+            type="password"
+            autocomplete="new-password"
+            bind:value={next}
+            disabled={passwordBusy}
+          />
+        </div>
+        <div class="field">
+          <label for="pw-repeat">{strings.register.repeatPassword}</label>
+          <input
+            id="pw-repeat"
+            type="password"
+            autocomplete="new-password"
+            bind:value={repeat}
+            disabled={passwordBusy}
+          />
+        </div>
+        <button class="button primary" type="submit" disabled={passwordBusy}>
+          {passwordBusy ? strings.register.securing : strings.settings.changePassword}
+        </button>
+      </form>
+    {:else}
+      <button class="button" type="button" onclick={() => (changing = true)}
+        >{strings.settings.changePassword}</button
+      >
+    {/if}
+    {#if passwordMessage}<p class="notice" role="status">{passwordMessage}</p>{/if}
+
+    <button
+      class="button"
+      type="button"
+      onclick={() => void end('logout')}
+      disabled={deleting !== null}
     >
-    {#if confirming}
+      {strings.settings.signOut}
+    </button>
+
+    {#if deleting}
+      <p class="notice" role="status">
+        {strings.settings.deleting} <span class="code">{deleting.done}/{deleting.total}</span>
+      </p>
+    {:else if confirming}
       <div class="field">
         <label for="confirm-delete">{strings.settings.deleteConfirm(app.username)}</label>
-        <input id="confirm-delete" autocomplete="off" autocapitalize="none" bind:value={typed} />
+        <input
+          id="confirm-delete"
+          autocomplete="off"
+          autocapitalize="none"
+          spellcheck="false"
+          bind:value={typed}
+        />
       </div>
-      <!-- Penghapusan akun (room.purge di setiap room + DELETE) diaktifkan di W11. -->
-      <button class="button primary" type="button" disabled>
+      <button
+        class="button primary"
+        type="button"
+        disabled={typed !== app.username}
+        onclick={remove}
+      >
         {strings.settings.deleteNow}
       </button>
     {:else}
@@ -53,6 +168,7 @@
         >{strings.settings.deleteNow}</button
       >
     {/if}
+    {#if deleteError}<p class="notice" role="alert">{deleteError}</p>{/if}
   </div>
 </main>
 
@@ -79,8 +195,13 @@
     width: 18px;
     height: 18px;
   }
-  .actions {
+  .actions,
+  .form {
     display: grid;
     gap: var(--space-3);
+  }
+  .notice {
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--fg);
   }
 </style>

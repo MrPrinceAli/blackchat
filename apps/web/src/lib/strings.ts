@@ -85,6 +85,9 @@ export const strings = {
     verify: 'Verifikasi',
     menu: 'Menu percakapan',
     block: (username: string) => `Blokir ${at(username)}`,
+    blockAction: 'Blokir',
+    cancel: 'Batal',
+    verified: 'Terverifikasi',
     blockConfirm: (username: string) =>
       `Blokir ${at(username)}? Semua pesan di percakapan ini dihapus dan pesan berikutnya dari akun ini tidak akan ditampilkan.`,
     composerPlaceholder: 'Tulis pesan...',
@@ -126,6 +129,11 @@ export const strings = {
     deleteConfirm: (username: string) =>
       `Ketik ${username} untuk menghapus akun ini beserta semua pesannya.`,
     deleting: 'Menghapus percakapan...',
+    deleteFailed: 'Gagal menghapus akun. Coba lagi.',
+    currentPassword: 'Password sekarang',
+    newPassword: 'Password baru',
+    wrongPassword: 'Password sekarang salah.',
+    passwordChanged: 'Password diganti.',
   },
 
   expired: {

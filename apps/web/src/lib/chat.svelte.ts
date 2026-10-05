@@ -8,6 +8,7 @@ import {
   IMAGE,
   LIMITS,
   MESSAGE,
+  type Contact,
   type EventFrame,
   type InitOp,
   type LookupResponse,
@@ -18,10 +19,12 @@ import {
 import type { RoomKeys } from '@blackchat/crypto';
 import {
   activeSession,
+  contacts,
   onRelayEvent,
   onSessionEnd,
   onSessionReady,
   rememberView,
+  saveContacts,
   type ActiveSession,
 } from './account';
 import { RelayError, relayApi } from './relay-api';
@@ -76,6 +79,8 @@ export interface OpenRoom {
   headerForPeer: string;
   /** Usulan timer yang menunggu jawaban (PRD §7.3). */
   pendingTtl: { ttl: Ttl; mine: boolean } | null;
+  /** Safety number sudah dicocokkan (disimpan di blob kontak, PRD §4.4). */
+  verified: boolean;
 }
 
 export const chat = $state<{
@@ -189,6 +194,9 @@ export async function loadRooms(): Promise<void> {
     const { rooms } = await s.connection.request({ t: 'rooms' });
     const now = Date.now();
     const kept: RoomEntry[] = [];
+    const book = contacts();
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- variabel lokal
+    const blocked = new Set(book.filter((c) => c.blocked).map((c) => c.userId));
     // eslint-disable-next-line svelte/prefer-svelte-reactivity -- variabel lokal
     const seen = new Map<string, RoomEntry>();
     for (const item of rooms) {
@@ -210,7 +218,17 @@ export async function loadRooms(): Promise<void> {
         void forget(item.inboxRoomId);
         continue;
       }
+      // Room dari akun yang diblokir dibersihkan diam-diam tanpa ditampilkan (PRD §8).
+      if (blocked.has(peer.peerUserId)) {
+        void purgeRoom(keys);
+        s.crypto.wipeRoomKeys(keys);
+        void forget(item.inboxRoomId);
+        continue;
+      }
       keyCache.set(item.inboxRoomId, keys);
+      const known = book.find((c) => c.username === peer.peerUsername);
+      if (known && known.edPk !== peer.peerEdPk)
+        chat.notice = strings.errors.keyChanged(peer.peerUsername);
       const previous = chat.rooms.find((r) => r.inboxRoomId === item.inboxRoomId);
       const entry: RoomEntry = {
         inboxRoomId: item.inboxRoomId,
@@ -284,6 +302,8 @@ export async function startConversation(username: string, ttl: Ttl): Promise<voi
     );
   }
   if (!verifyLookup(s, peer)) throw new StartConversationError('invalid');
+  // Username sama, kunci berbeda (akun lama hangus lalu didaftarkan orang lain): peringatkan (PRD §5.3).
+  const keyChanged = contacts().some((c) => c.username === username && c.edPk !== peer.edPk);
 
   const header: RoomHeader = {
     v: 1,
@@ -341,8 +361,16 @@ export async function startConversation(username: string, ttl: Ttl): Promise<voi
       ...chat.rooms,
       { inboxRoomId: keys.myInboxRoomId, peer: header, unread: 0, bump: ++bumpCounter },
     ];
+  await rememberContact({
+    userId: peer.userId,
+    edPk: peer.edPk,
+    username,
+    verified: false,
+    blocked: false,
+  });
   await enterRoom(keys.myInboxRoomId, result.ttl);
-  if (!result.created && result.ttl !== ttl)
+  if (keyChanged) chat.chatNotice = strings.errors.keyChanged(username);
+  else if (!result.created && result.ttl !== ttl)
     chat.chatNotice = strings.timer.simultaneous(result.ttl);
 }
 
@@ -388,6 +416,9 @@ async function enterRoom(inboxRoomId: string, ttl: Ttl | null): Promise<void> {
       s.crypto.sealHeader(base64urlDecode(entry.peer.peerXPk), headerAboutMe(s)),
     ),
     pendingTtl: null,
+    verified: contacts().some(
+      (c) => c.userId === entry.peer.peerUserId && c.verified && c.edPk === entry.peer.peerEdPk,
+    ),
   };
   rememberView('chat', entry.inboxRoomId);
   navigate('chat');
@@ -623,6 +654,104 @@ export async function retractMessage(msgId: string): Promise<void> {
     }
   }
   removeMessage(msgId);
+}
+
+// ================================================================ kontak, verifikasi, blokir (PRD §4.4, §4.8, §8)
+
+/**
+ * Simpan/perbarui kontak. Kontak lain dengan username sama tetapi kunci berbeda dibuang (akun lama).
+ * Status terverifikasi hanya dipertahankan jika kuncinya sama.
+ */
+async function rememberContact(next: Contact): Promise<void> {
+  const book = contacts();
+  const existing = book.find((c) => c.userId === next.userId);
+  const merged: Contact =
+    existing && existing.edPk === next.edPk
+      ? { ...existing, username: next.username, blocked: next.blocked }
+      : next;
+  const list = [
+    ...book.filter((c) => c.userId !== next.userId && c.username !== next.username),
+    merged,
+  ];
+  const changed =
+    !existing || JSON.stringify(existing) !== JSON.stringify(merged) || list.length !== book.length;
+  if (changed) await saveContacts(list).catch(() => undefined);
+}
+
+/** Tandai lawan di room terbuka sebagai terverifikasi (safety number cocok). */
+export async function markVerified(): Promise<void> {
+  const open = chat.open;
+  if (!open) return;
+  const peer = open.entry.peer;
+  const book = contacts();
+  const existing = book.find((c) => c.userId === peer.peerUserId);
+  const contact: Contact = {
+    userId: peer.peerUserId,
+    edPk: peer.peerEdPk,
+    username: peer.peerUsername,
+    verified: true,
+    blocked: existing?.blocked ?? false,
+  };
+  await saveContacts([...book.filter((c) => c.userId !== peer.peerUserId), contact]);
+  if (chat.open === open) open.verified = true;
+}
+
+/** room.purge: hapus semua pesan & chunk room di server (blokir, hapus akun; PRD §6.2). */
+async function purgeRoom(keys: RoomKeys): Promise<void> {
+  const s = activeSession();
+  if (!s) return;
+  const op = { kind: 'purge' as const, roomId: keys.roomId };
+  try {
+    await s.connection.request({ t: 'room.purge', op, auth: s.crypto.roomAuth(keys, op) });
+  } catch {
+    // Room sudah tidak ada (hangus) atau koneksi putus: tidak ada lagi yang bisa dihapus dari sini.
+  }
+}
+
+/**
+ * Blokir lawan di room terbuka (PRD §8): purge room → rooms.forget → status blokir di blob kontak terenkripsi
+ * (server tidak tahu siapa memblokir siapa). Pesan berikutnya dari akun ini tidak ditampilkan.
+ */
+export async function blockPeer(): Promise<void> {
+  const open = chat.open;
+  if (!open) return;
+  const peer = open.entry.peer;
+  await purgeRoom(open.keys);
+  const book = contacts();
+  const existing = book.find((c) => c.userId === peer.peerUserId);
+  await saveContacts([
+    ...book.filter((c) => c.userId !== peer.peerUserId),
+    {
+      userId: peer.peerUserId,
+      edPk: peer.peerEdPk,
+      username: peer.peerUsername,
+      verified: existing?.verified ?? false,
+      blocked: true,
+    },
+  ]);
+  const inboxRoomId = open.entry.inboxRoomId;
+  closeRoom(false);
+  await forget(inboxRoomId);
+  rememberView('home', null);
+  navigate('home');
+}
+
+/**
+ * Sebelum hapus akun (PRD §5.2): room.purge di setiap room milik akun ini.
+ * `onProgress(selesai, total)` untuk "Menghapus percakapan...".
+ */
+export async function purgeAllRooms(
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> {
+  await loadRooms();
+  const rooms = [...chat.rooms];
+  let done = 0;
+  onProgress?.(done, rooms.length);
+  for (const room of rooms) {
+    const keys = keyCache.get(room.inboxRoomId);
+    if (keys) await purgeRoom(keys);
+    onProgress?.(++done, rooms.length);
+  }
 }
 
 // ================================================================ gambar (PRD §4.5 langkah 3, §7.5)

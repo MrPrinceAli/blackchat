@@ -26,7 +26,7 @@ import {
 } from './session';
 import { strings } from './strings';
 import { RelayConnection } from './ws';
-import type { EventFrame } from '@blackchat/protocol';
+import type { Contact, EventFrame } from '@blackchat/protocol';
 
 export type AccountErrorCode =
   | 'username_format'
@@ -59,6 +59,8 @@ interface Active {
   connection: RelayConnection;
   tracker: ActivityTracker;
   detach: () => void;
+  /** Daftar kontak hasil dekripsi blob (PRD §4.8). */
+  contacts: Contact[];
 }
 
 let active: Active | null = null;
@@ -373,7 +375,16 @@ function start(
     clearInterval(interval);
   };
 
-  active = { crypto: c, identity, vaultKey, secrets, view, connection, tracker, detach };
+  let contacts: Contact[] = [];
+  if (secrets.contacts) {
+    try {
+      contacts = c.openContacts(vaultKey, unb64(secrets.contacts));
+    } catch {
+      // Blob tidak bisa dibuka (misal ganti password terputus sebelum kontak dienkripsi ulang): mulai kosong.
+      contacts = [];
+    }
+  }
+  active = { crypto: c, identity, vaultKey, secrets, view, connection, tracker, detach, contacts };
   resumeRoom = view.screen === 'chat' ? secrets.lastRoomId : null;
   connection.start();
   navigate('home');
@@ -414,4 +425,111 @@ export function stayActive(): void {
 /** "Gunakan di sini" setelah akun dibuka di tab lain (4409). */
 export function useHere(): void {
   active?.connection.takeOver();
+}
+
+// ================================================================ update bertanda tangan (PRD §5.2)
+
+let updateQueue: Promise<unknown> = Promise.resolve();
+
+/** Jalankan update bertanda tangan satu per satu agar seq selalu naik berurutan. */
+function enqueue<T>(task: () => Promise<T>): Promise<T> {
+  const run = updateQueue.then(task, task);
+  updateQueue = run.catch(() => undefined);
+  return run;
+}
+
+async function signedUpdate<T extends Record<string, unknown>>(
+  label: string,
+  fields: T,
+  send: (body: T & { userId: string; seq: number; sig: string }) => Promise<unknown>,
+): Promise<void> {
+  const a = active;
+  if (!a) throw new AccountError('generic');
+  const seq = a.secrets.seq + 1;
+  const body = { ...fields, userId: a.secrets.userId, seq };
+  const sig = b64(a.crypto.signFields(a.identity.edSk, label, body));
+  try {
+    await send({ ...body, sig });
+  } catch (error) {
+    throw fromRelayError(error);
+  }
+  a.secrets.seq = seq;
+  await session.save(a.secrets, a.view);
+}
+
+// ================================================================ kontak (PRD §4.8)
+
+export function contacts(): Contact[] {
+  return active ? active.contacts.map((c) => ({ ...c })) : [];
+}
+
+/** Enkripsi daftar kontak dengan vaultKey (padding 4 KB) dan simpan di relay. */
+export function saveContacts(list: Contact[]): Promise<void> {
+  return enqueue(async () => {
+    const a = active;
+    if (!a) return;
+    const blob = b64(a.crypto.sealContacts(a.vaultKey, list));
+    await signedUpdate(LABELS.REQ_CONTACTS, { contacts: blob }, (body) => relayApi.contacts(body));
+    a.contacts = list.map((c) => ({ ...c }));
+    a.secrets.contacts = blob;
+    await session.save(a.secrets, a.view);
+  });
+}
+
+// ================================================================ ganti password (PRD §4.3)
+
+/**
+ * Ganti password: password lama dibuktikan dengan menurunkan ulang vaultKey (dibandingkan constant-time),
+ * lalu salt baru, vault dienkripsi ulang, dan blob kontak dienkripsi ulang dengan vaultKey baru (D-019).
+ */
+export function changePassword(current: string, next: string, repeat: string): Promise<void> {
+  return enqueue(async () => {
+    const a = active;
+    if (!a) throw new AccountError('generic');
+    const c = a.crypto;
+    const { salt } = await relayApi.salt(a.secrets.username).catch((error: unknown) => {
+      throw fromRelayError(error);
+    });
+    const old = await deriveKeysInWorker(current, unb64(salt));
+    const matches = c.equalBytes(old.vaultKey, a.vaultKey);
+    c.wipe(old.authKey);
+    c.wipe(old.vaultKey);
+    if (!matches) throw new AccountError('credentials');
+    const problem = c.checkPasswordPolicy(a.secrets.username, next);
+    if (problem) throw new AccountError(problem);
+    if (next !== repeat) throw new AccountError('mismatch');
+
+    const newSalt = c.newSalt();
+    const keys = await deriveKeysInWorker(next, newSalt);
+    const vault = b64(c.sealVault(keys.vaultKey, a.identity.edSk, a.identity.xSk));
+    await signedUpdate(
+      LABELS.REQ_PASSWORD,
+      { salt: b64(newSalt), authKey: b64(keys.authKey), vault },
+      (body) => relayApi.password(body),
+    );
+    c.wipe(keys.authKey);
+    c.wipe(a.vaultKey);
+    a.vaultKey = keys.vaultKey;
+    a.secrets.vaultKey = b64(keys.vaultKey);
+    await session.save(a.secrets, a.view);
+
+    // Blob kontak terenkripsi dengan vaultKey lama: enkripsi ulang.
+    const blob = b64(c.sealContacts(a.vaultKey, a.contacts));
+    await signedUpdate(LABELS.REQ_CONTACTS, { contacts: blob }, (body) => relayApi.contacts(body));
+    a.secrets.contacts = blob;
+    await session.save(a.secrets, a.view);
+  });
+}
+
+// ================================================================ hapus akun (PRD §5.2)
+
+/**
+ * Hapus akun sekarang. Pemanggil wajib sudah menjalankan room.purge di setiap room (PRD §5.2);
+ * server lalu menghapus baris D1 dan mengosongkan InboxDO.
+ */
+export function deleteAccount(): Promise<void> {
+  return enqueue(async () => {
+    await signedUpdate(LABELS.REQ_DELETE, {}, (body) => relayApi.deleteAccount(body));
+    await end('logout');
+  });
 }
