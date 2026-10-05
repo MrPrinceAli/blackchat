@@ -186,7 +186,8 @@ Safety number tetap persis PRD §4.4 (tanpa label).
 ## D-020 — Rilis & domain (2026-10-05)
 **Konteks:** `blackchat.vercel.app` (nilai `ALLOWED_ORIGIN` di PRD §11.2) sudah dipakai orang lain. Domain web dan relay baru diketahui setelah akun Vercel/Cloudflare dibuat.
 **Keputusan:**
-- **Domain dikonfigurasi dengan satu perintah** (`pnpm configure-domains --web … --relay …`): mengisi host relay di CSP `apps/web/vercel.json` dan `ALLOWED_ORIGIN` produksi di `apps/relay/wrangler.toml` (env test tidak tersentuh). Skrip memvalidasi origin `https://` tanpa path dan bisa dijalankan ulang untuk ganti domain. Header preview untuk E2E menerima placeholder maupun host produksi.
+- **Domain dikonfigurasi dengan satu perintah** (`pnpm configure-domains --web … --relay …`): mengisi host relay di CSP `apps/web/vercel.json` dan `ALLOWED_ORIGIN` produksi di `apps/relay/wrangler.toml` (env test tidak tersentuh). `--web` dan `--relay` boleh dijalankan terpisah (minimal salah satu), karena domain web bisa dipilih sebelum relay ter-deploy. Skrip memvalidasi origin `https://` tanpa path dan bisa dijalankan ulang untuk ganti domain. Header preview untuk E2E menerima placeholder maupun host produksi.
+- **Domain web: `https://blackchat-id.vercel.app`** (dipilih pemilik proyek).
 - **`deploy-relay.yml`** (push `main` yang mengubah relay/protokol, atau manual): dilewati dengan notice selama secret Cloudflare belum diisi; gagal jika `database_id` D1 masih placeholder; menjalankan test relay, migrasi D1 `--remote`, lalu `wrangler deploy`.
 - **`release-hash.yml`** (tag `v*`): build web dengan repository variable `VITE_RELAY_URL`, SHA-384 setiap file `dist/`, dan GitHub Release berisi `hashes.txt`.
 - **Web dideploy oleh integrasi Git Vercel** (Root Directory `apps/web`), bukan dari GitHub Actions, sehingga token Vercel tidak perlu disimpan di repo.

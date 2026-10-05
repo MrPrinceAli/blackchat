@@ -175,6 +175,12 @@ test('refresh membuka room yang benar walau urutan daftar berubah; timer tetap a
   await openRoomWith(b.page, a.username);
   await expect(b.page.getByRole('timer', { name: /detik tersisa/ })).toBeVisible();
   const opened = Date.now();
+  // Hitung mundur di pesan sendiri (rata kanan) selebar bubble, bukan menyusut ke lebar angka.
+  const ownTimer = a.page.getByRole('timer', { name: /detik tersisa/ });
+  await expect(ownTimer).toBeVisible();
+  const timerWidth = (await ownTimer.boundingBox())?.width ?? 0;
+  const bubbleWidth = (await a.page.getByRole('button', { name: 'dari a' }).boundingBox())?.width;
+  expect(timerWidth).toBeGreaterThanOrEqual((bubbleWidth ?? Infinity) - 1);
   // Urutan daftar berubah: pesan baru dari C.
   await send(c.page, 'dari c lagi');
   await b.page.waitForTimeout(3_000);

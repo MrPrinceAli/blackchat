@@ -1,0 +1,33 @@
+name: Laporan bug
+description: Sesuatu tidak bekerja sebagaimana mestinya
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Celah keamanan? Jangan lapor di sini.** Gunakan Security → Report a vulnerability (lihat SECURITY.md).
+        Jangan menyertakan username, password, isi pesan, atau screenshot percakapan sungguhan.
+  - type: textarea
+    id: what
+    attributes:
+      label: Apa yang terjadi?
+      description: Jelaskan singkat, dan apa yang seharusnya terjadi.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Langkah reproduksi
+      placeholder: |
+        1. Buat dua akun
+        2. Kirim gambar dengan timer 3 dtk
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser & perangkat
+      placeholder: Safari 19 · iPhone 15
+    validations:
+      required: true
