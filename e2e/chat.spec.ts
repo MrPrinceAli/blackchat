@@ -23,12 +23,31 @@ test.afterEach(async ({ request }) => {
 
 const bubbleText = (page: Page, text: string) => page.getByText(text, { exact: true });
 
-/** Waktu (ms) dari hitung mundur muncul di `page` sampai teks hilang dari DOM. */
+/**
+ * Waktu (ms) dari hitung mundur muncul di `page` sampai teks hilang dari DOM.
+ * Diukur di dalam halaman per frame: polling expect() Playwright melambat ke 1 dtk sekali cek,
+ * sehingga hasilnya bisa meleset hingga 1 dtk dan menembus toleransi ±500 ms.
+ */
 async function timeUntilBurned(page: Page, text: string): Promise<number> {
-  await expect(page.getByRole('timer', { name: /detik tersisa/ })).toBeVisible();
-  const started = Date.now();
-  await expect(bubbleText(page, text)).toHaveCount(0, { timeout: 15_000 });
-  return Date.now() - started;
+  return page.evaluate(async (text) => {
+    const until = (done: () => boolean) =>
+      new Promise<void>((resolve, reject) => {
+        const limit = performance.now() + 15_000;
+        const tick = () => {
+          if (done()) resolve();
+          else if (performance.now() > limit) reject(new Error(`timeout: ${text}`));
+          else requestAnimationFrame(tick);
+        };
+        tick();
+      });
+    const log = () => document.querySelector('[role="log"]');
+    await until(
+      () => document.querySelector('[role="timer"][aria-label*="detik tersisa"]') !== null,
+    );
+    const started = performance.now();
+    await until(() => !(log()?.textContent ?? '').includes(text));
+    return performance.now() - started;
+  }, text);
 }
 
 async function pair(
