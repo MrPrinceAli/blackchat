@@ -192,7 +192,11 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 - [x] D1 produksi `blackchat` dibuat (region APAC), `database_id` diisi, migrasi `0001_init.sql` diterapkan `--remote`.
 - [x] Relay live di `https://blackchat-relay.fachrulanf.workers.dev` (deploy pertama lewat `deploy-relay.yml`,
       `SALT_SECRET` dibuat otomatis). Host relay diisi ke CSP `apps/web/vercel.json`.
-- [ ] Web di Vercel: project `blackchat-id`, env `VITE_RELAY_URL=https://blackchat-relay.fachrulanf.workers.dev`.
+- [x] Web live di `https://blackchat-id.vercel.app` (project Vercel `blackchat-id`, team Viclatess, Root Directory
+      `apps/web`, Node 22.x, env `VITE_RELAY_URL` & `ENABLE_EXPERIMENTAL_COREPACK`; terhubung ke repo GitHub).
+- [x] GitHub: secret `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`; variable `VITE_RELAY_URL`.
+- [x] Uji produksi (2026-10-05): header keamanan & CORS relay benar; dua akun register, kirim teks, melebur di kedua
+      sisi setelah ~3,6 dtk (ttl 3), tanpa error konsol, request luar origin, atau pelanggaran CSP; akun uji dihapus.
 
 Domain sendiri (misal `blackchat.id`) tetap bisa ditambahkan nanti lewat Vercel → Domains, lalu jalankan ulang
 `pnpm configure-domains --web https://<domain>`.
