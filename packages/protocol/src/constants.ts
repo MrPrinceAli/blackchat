@@ -265,8 +265,8 @@ export const BINARY_FRAME = {
   TYPE_CHUNK: 0x01,
   /** [tipe 1][msgId 16][idx 4][panjang header 2] */
   PREFIX_BYTES: 1 + SIZES.MSG_ID + 4 + 2,
-  /** Header JSON {reqId, op, auth} maksimal. */
-  HEADER_MAX_BYTES: 1024,
+  /** Header JSON {reqId, op, auth, rute lawan, header tersegel} maksimal (D-018). */
+  HEADER_MAX_BYTES: 2048,
 } as const;
 
 /** reqId frame WS: bilangan bulat 1 … 2^31 − 1. */

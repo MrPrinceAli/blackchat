@@ -75,6 +75,7 @@ Semua versi dipin persis (`.npmrc` `save-exact=true`). Dependensi baru wajib dit
 | `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-svelte`, `svelte-eslint-parser`, `globals` | Lint dengan aturan wajib PRD §12 |
 | `prettier`, `prettier-plugin-svelte` | Format kode konsisten |
 | `@playwright/test` | Smoke & E2E di browser sungguhan, dengan CSP produksi (`e2e/`) |
+| `@vitest/browser-playwright`, `playwright` | Test unit yang butuh browser sungguhan (canvas, encoder gambar): `*.browser.test.ts` di apps/web |
 
 ## Atribusi
 

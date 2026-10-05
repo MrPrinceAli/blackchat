@@ -10,6 +10,7 @@ import {
   ERRORS,
   LABELS,
   LIMITS,
+  parseChunkFrame,
   parseClientFrame,
   SIZES,
   utf8Encode,
@@ -151,11 +152,8 @@ export class InboxDO extends DurableObject<Env> {
       return;
     }
     if (typeof message !== 'string') {
-      // Frame biner (chunk gambar) ditangani di W10.
-      return ws.close(
-        state.state === 'ready' ? WS.CLOSE.PROTOCOL_ERROR : WS.CLOSE.UNAUTHORIZED,
-        'binary',
-      );
+      if (state.state !== 'ready') return ws.close(WS.CLOSE.UNAUTHORIZED, 'binary before auth');
+      return this.handleChunk(ws, state, new Uint8Array(message));
     }
     const parsed = parseClientFrame(message);
     if (!parsed.ok) return ws.close(WS.CLOSE.PROTOCOL_ERROR, 'invalid frame');
@@ -347,10 +345,57 @@ export class InboxDO extends DurableObject<Env> {
         return result;
       }
 
-      // Diisi di W10 (chunk gambar).
       case 'room.getChunk':
-        return fail(ERRORS.INVALID);
+        return this.room(frame.op.roomId).getChunk(frame.op, frame.auth);
     }
+  }
+
+  // ---------------------------------------------------------------- chunk gambar (PRD §6.1, §6.2, §13.2)
+
+  /** Total byte chunk yang pernah diunggah akun ini (kuota 150 MB selama umur akun, PRD §6.1). */
+  private uploadedBytes(): number {
+    return this.ctx.storage.kv.get<number>('uploaded_bytes') ?? 0;
+  }
+
+  private async handleChunk(ws: WebSocket, state: SocketState, bytes: Uint8Array): Promise<void> {
+    const parsed = parseChunkFrame(bytes);
+    if (!parsed.ok) return ws.close(WS.CLOSE.PROTOCOL_ERROR, 'invalid chunk frame');
+    const { header, data } = parsed.value;
+    let result: Result<{ complete: boolean }>;
+    try {
+      await enforceRate(this.env, 'chunk', state.userId);
+      if (this.uploadedBytes() + data.length > LIMITS.ACCOUNT_UPLOAD_QUOTA_BYTES) {
+        result = fail(ERRORS.QUOTA_EXCEEDED);
+      } else {
+        const stored = await this.room(header.op.roomId).putChunk(header.op, header.auth, data);
+        if (stored.ok) {
+          this.ctx.storage.kv.put('uploaded_bytes', this.uploadedBytes() + data.length);
+          // Pesan gambar baru diberitahukan setelah semua chunk masuk.
+          if (stored.value.complete) {
+            const peer = this.peer(header.peerUserId);
+            await peer.touch(
+              header.peerUserId,
+              header.peerInboxRoomId,
+              header.sealedHeaderForPeer ?? null,
+              1,
+            );
+            await peer.event(header.peerUserId, header.peerInboxRoomId, {
+              t: 'new',
+              seq: stored.value.seq,
+            });
+          }
+          result = ok({ complete: stored.value.complete });
+        } else result = stored;
+      }
+    } catch (error) {
+      result = fail(error instanceof HttpError ? error.code : ERRORS.INTERNAL);
+    }
+    this.send(
+      ws,
+      result.ok
+        ? { t: 'result', reqId: header.reqId, ok: true, data: result.value }
+        : { t: 'result', reqId: header.reqId, ok: false, error: result.error },
+    );
   }
 
   // ---------------------------------------------------------------- RPC dari InboxDO lain

@@ -244,7 +244,8 @@ export const cases: Case[] = [
   {
     name: 'chunkFrameHeader',
     validator: v.chunkFrameHeader,
-    valid: { reqId: 11, op: ops.putChunk, auth },
+    valid: { reqId: 11, op: ops.putChunk, auth, ...route, sealedHeaderForPeer: sealedHeader },
+    optional: ['sealedHeaderForPeer'],
   },
   // ------------------------------------------------ frame server
   { name: 'challenge', validator: v.serverFrame, valid: { t: 'challenge', nonce: b64(32) } },

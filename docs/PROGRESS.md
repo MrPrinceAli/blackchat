@@ -13,8 +13,8 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 | W6 | Web: fondasi & UI statis | Selesai, merged | #12 |
 | W7 | Web: akun, sesi & koneksi | Selesai, merged | #13 |
 | W8 | Chat teks end-to-end | Selesai, merged | #14 |
-| W9 | Batalkan pesan & kesepakatan timer | Selesai | branch `w9-batal-timer` |
-| W10 | Gambar | Belum mulai | — |
+| W9 | Batalkan pesan & kesepakatan timer | Selesai, merged | #15 |
+| W10 | Gambar | Selesai | branch `w10-gambar` |
 | W11 | Kontak, verifikasi, blokir & settings | Belum mulai | — |
 | W12 | Rilis: deploy, E2E penuh, dokumen | Belum mulai | — |
 
@@ -142,3 +142,13 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 - Test: 88 di relay (8 baru, 4 pemeriksaan diuji mutasi: semuanya tertangkap) + 42 E2E (4 baru: batalkan di kedua
   sisi & server, menu hanya pesan sendiri, keyboard, timer hanya berlaku setelah disetujui, mulai bersamaan).
 - Keputusan baru: D-017.
+
+### 2026-10-05 — W10 Gambar
+- Selesai: relay `putChunk`/`getChunk` + frame biner + kuota 150 MB/akun + batas 30 MB/room + notifikasi saat chunk
+  terakhir (rute di header chunk, D-018); client: proses gambar (canvas, ≤ 1600 px, WebP/JPEG ≤ 1,5 MB, EXIF hilang),
+  enkripsi chunk, upload 2 paralel dengan progres, batalkan saat upload, unduh + dekripsi + cek hash saat tampil,
+  render di `<canvas>` (tinggi ≤ 60% layar), lebur gambar + caption, lampiran lewat tombol, tempel, dan drag & drop.
+- Test: relay 96 (9 baru; 5 pemeriksaan diuji mutasi, semuanya tertangkap), web 54 unit + 2 test browser Chromium
+  (EXIF/GPS hilang, diuji mutasi), E2E 48 (3 baru: kirim/tampil/lebur gambar, portrait tinggi di 320×568, > 15 MB).
+- Ditemukan & diperbaiki: tinggi tampilan gambar dibulatkan ke atas sehingga melewati batas 60% layar.
+- Keputusan baru: D-018.

@@ -537,11 +537,10 @@ export const roomPurgeFrame: Validator<RoomPurgeFrame> = obj({
   auth: roomAuth,
 });
 
-export const chunkFrameHeader: Validator<ChunkFrameHeader> = obj({
-  reqId: vReqId,
-  op: putChunkOp,
-  auth: roomAuth,
-});
+export const chunkFrameHeader: Validator<ChunkFrameHeader> = obj(
+  { reqId: vReqId, op: putChunkOp, auth: roomAuth, ...route },
+  { sealedHeaderForPeer: vSealedHeader },
+);
 
 const CLIENT_FRAMES: { [K in ClientFrame['t']]: Validator<Extract<ClientFrame, { t: K }>> } = {
   ping: pingFrame,

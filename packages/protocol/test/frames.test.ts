@@ -1,18 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
   BINARY_FRAME,
+  HEADER,
   IMAGE_CIPHER_CHUNK_BYTES,
   base64urlEncode,
   encodeChunkFrame,
   parseChunkFrame,
   type ChunkFrameHeader,
 } from '../src/index.js';
-import { auth, ops } from './fixtures.js';
+import { auth, b64, ops, PEER_ID, PEER_INBOX } from './fixtures.js';
 
 const header: ChunkFrameHeader = {
   reqId: 11,
   op: { ...ops.putChunk, kind: 'putChunk', idx: 2 },
   auth,
+  peerUserId: PEER_ID,
+  peerInboxRoomId: PEER_INBOX,
+  sealedHeaderForPeer: b64(HEADER.SEALED_BYTES),
 };
 const data = new Uint8Array(IMAGE_CIPHER_CHUNK_BYTES).fill(9);
 
@@ -70,6 +74,11 @@ describe('frame biner chunk (PRD §13.2)', () => {
   it('menolak header dengan auth tidak valid', () => {
     const bad = { ...header, auth: { ...auth, proof: 'x' } };
     expect(parseChunkFrame(encodeChunkFrame(bad, data)).ok).toBe(false);
+  });
+
+  it('header dengan rute lawan dan header tersegel muat dalam batas frame', () => {
+    const frame = encodeChunkFrame(header, data);
+    expect(frame.length).toBeLessThanOrEqual(300 * 1024);
   });
 
   it('encode menolak frame melebihi 300 KB', () => {

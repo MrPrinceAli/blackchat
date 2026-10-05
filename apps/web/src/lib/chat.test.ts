@@ -38,6 +38,7 @@ const msg = (
   seq,
   mine,
   ttl: 5,
+  kind: 'text',
   text: msgId,
   status,
 });

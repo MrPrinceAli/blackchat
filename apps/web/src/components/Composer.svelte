@@ -6,9 +6,15 @@
     onSend,
     onAttach,
     disabled = false,
-  }: { onSend?: (text: string) => void; onAttach?: () => void; disabled?: boolean } = $props();
+  }: {
+    onSend?: (text: string) => void;
+    /** Gambar dipilih/ditempel; teks yang sedang diketik menjadi caption (PRD §7.5). */
+    onAttach?: (file: File, caption: string) => void;
+    disabled?: boolean;
+  } = $props();
 
   let text = $state('');
+  let fileInput: HTMLInputElement;
   const canSend = $derived(!disabled && text.trim().length > 0);
 
   function send() {
@@ -17,11 +23,24 @@
     text = '';
   }
 
+  function attach(file: File | undefined | null) {
+    if (!file) return;
+    onAttach?.(file, text);
+    text = '';
+  }
+
   function onKeydown(event: KeyboardEvent) {
     if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
       event.preventDefault();
       send();
     }
+  }
+
+  function onPaste(event: ClipboardEvent) {
+    const file = [...(event.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
+    if (!file) return;
+    event.preventDefault();
+    attach(file);
   }
 </script>
 
@@ -32,11 +51,23 @@
     send();
   }}
 >
+  <input
+    bind:this={fileInput}
+    class="visually-hidden"
+    type="file"
+    accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+    tabindex="-1"
+    aria-hidden="true"
+    onchange={() => {
+      attach(fileInput.files?.[0]);
+      fileInput.value = '';
+    }}
+  />
   <button
     type="button"
     class="icon"
     aria-label={strings.chat.attach}
-    onclick={() => onAttach?.()}
+    onclick={() => fileInput.click()}
     {disabled}>⊕</button
   >
   <label class="visually-hidden" for="composer-text">{strings.chat.composerLabel}</label>
@@ -47,6 +78,7 @@
     placeholder={strings.chat.composerPlaceholder}
     bind:value={text}
     onkeydown={onKeydown}
+    onpaste={onPaste}
     {disabled}></textarea>
   <button type="submit" class="icon send" aria-label={strings.chat.send} disabled={!canSend}
     >↑</button

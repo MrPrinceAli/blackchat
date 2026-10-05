@@ -1,4 +1,5 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { playwright } from '@vitest/browser-playwright';
 import { defineConfig, loadEnv } from 'vite';
 import { securityHeaders } from './security-headers.js';
 
@@ -17,7 +18,30 @@ export default defineConfig(({ mode }) => {
       headers: securityHeaders(relayUrl),
     },
     test: {
-      include: ['src/**/*.test.ts'],
+      projects: [
+        {
+          extends: true,
+          test: {
+            name: 'unit',
+            include: ['src/**/*.test.ts'],
+            exclude: ['src/**/*.browser.test.ts'],
+          },
+        },
+        {
+          // Test yang butuh browser sungguhan (canvas, createImageBitmap, encoder gambar).
+          extends: true,
+          test: {
+            name: 'browser',
+            include: ['src/**/*.browser.test.ts'],
+            browser: {
+              enabled: true,
+              headless: true,
+              provider: playwright(),
+              instances: [{ browser: 'chromium' }],
+            },
+          },
+        },
+      ],
     },
   };
 });
