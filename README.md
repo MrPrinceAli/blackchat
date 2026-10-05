@@ -37,6 +37,8 @@ pnpm format:check
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm check:inline   # HTML build tanpa script/style inline (CSP)
+pnpm test:e2e       # Playwright (pertama kali: pnpm exec playwright install chromium)
 ```
 
 Relay lokal butuh `apps/relay/.dev.vars` (salin dari `.dev.vars.example`).
@@ -70,7 +72,9 @@ Semua versi dipin persis (`.npmrc` `save-exact=true`). Dependensi baru wajib dit
 | `@cloudflare/vitest-pool-workers` | Test relay di dalam runtime Workers (workerd) dengan D1 dan Durable Objects lokal |
 | `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-svelte`, `svelte-eslint-parser`, `globals` | Lint dengan aturan wajib PRD §12 |
 | `prettier`, `prettier-plugin-svelte` | Format kode konsisten |
+| `@playwright/test` | Smoke & E2E di browser sungguhan, dengan CSP produksi (`e2e/`) |
 
 ## Atribusi
 
+- Font Instrument Sans dan Martian Mono (SIL Open Font License 1.1), subset Latin dari [Fontsource](https://fontsource.org). Lisensi di `apps/web/public/fonts/`.
 - Daftar password umum di `packages/crypto/src/common-passwords.ts` diturunkan dari [SecLists](https://github.com/danielmiessler/SecLists) (MIT, © Daniel Miessler). Lihat D-010.

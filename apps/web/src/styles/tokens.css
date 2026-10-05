@@ -1,0 +1,56 @@
+/* Token PRD §10.2. Hitam putih murni: tanpa warna lain, bayangan, atau gradien. */
+:root {
+  --ink: #000000;
+  --paper: #ffffff;
+  --graphite: #5c5c5c;
+  --ash: #a3a3a3;
+  --hairline: #e5e5e5; /* garis tema terang */
+  --smoke: #262626; /* garis tema gelap */
+
+  --font-ui: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-code: 'Martian Mono', ui-monospace, Menlo, monospace;
+
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: 1.75rem;
+  --step-3: 2.75rem;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --radius-bubble: 2px;
+  --radius-control: 999px;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --content-max: 640px;
+
+  /* Tema gelap (default). */
+  --bg: var(--ink);
+  --fg: var(--paper);
+  --muted: var(--ash);
+  --line: var(--smoke);
+  color-scheme: dark;
+}
+
+/* Tema terang = dibalik total. Mengikuti sistem kecuali dipilih manual (data-theme). */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --bg: var(--paper);
+    --fg: var(--ink);
+    --muted: var(--graphite);
+    --line: var(--hairline);
+    color-scheme: light;
+  }
+}
+
+:root[data-theme='light'] {
+  --bg: var(--paper);
+  --fg: var(--ink);
+  --muted: var(--graphite);
+  --line: var(--hairline);
+  color-scheme: light;
+}

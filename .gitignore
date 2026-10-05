@@ -12,3 +12,4 @@ test-results/
 !.dev.vars.example
 *.tsbuildinfo
 .DS_Store
+/blob-report/

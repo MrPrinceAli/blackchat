@@ -9,8 +9,8 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 | W2 | Crypto inti | Selesai, merged | #3 → #6 |
 | W3 | Crypto room & pesan | Selesai, merged | #4 → #7 |
 | W4 | Relay: akun & limiter | Selesai, merged | #10 |
-| W5 | Relay: InboxDO & RoomDO | Selesai | branch `w5-relay-do` |
-| W6 | Web: fondasi & UI statis | Belum mulai | — |
+| W5 | Relay: InboxDO & RoomDO | Selesai, merged | #11 |
+| W6 | Web: fondasi & UI statis | Selesai | branch `w6-web-fondasi` |
 | W7 | Web: akun, sesi & koneksi | Belum mulai | — |
 | W8 | Chat teks end-to-end | Belum mulai | — |
 | W9 | Batalkan pesan & kesepakatan timer | Belum mulai | — |
@@ -99,3 +99,17 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
   (lawan yang menghapus akun; event ke socket yang belum terautentikasi).
 - Keputusan baru: D-013 (termasuk risiko yang diterima soal routing touch/event).
 - Tertunda: `room.retract`/`room.ttl` (W9) dan chunk gambar (W10) masih dibalas `invalid`.
+
+### 2026-10-05 — W6 Web: fondasi & UI statis
+- Selesai: token & gaya dasar (PRD §10.2), font self-hosted, `strings.ts`, router di memori, layar Welcome/Register/
+  Login/Home/Chat/Verify/Settings/Expired (data contoh), komponen SecretBubble, BurnFx (canvas, reduced-motion),
+  AccountClock, TimerPicker, Composer, ContextMenu (klik kanan, tekan lama, Shift+F10, Esc), Watermark; guard
+  (sensor saat blur/tersembunyi, blok copy/cut/drag, print); `vercel.json` + preview dengan CSP produksi; `check:inline`.
+- Test: 16 unit (format jam, mesin lebur, wrapText, guard) + 8 smoke Playwright (320×568 & 1280×800): semua layar,
+  tanpa error konsol, tanpa pelanggaran CSP, tanpa request ke host lain, tanpa scroll horizontal; menu konteks; XSS
+  sebagai teks; print & salin diblok.
+- Ditemukan & diperbaiki: grid safety number meluber di 320 px; kode demo dev ikut ke bundle produksi; listener
+  capture tidak terlepas di EventTarget Node; dua tombol berlabel sama.
+- Bundle JS produksi: 27,9 KB gzip.
+- Keputusan baru: D-014.
+- Langkah manual (opsional): hubungkan repo ke Vercel (Root Directory `apps/web`) untuk preview tampilan statis.
