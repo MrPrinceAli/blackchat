@@ -1,5 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import SessionBanner from './components/SessionBanner.svelte';
+  import { restore } from './lib/account';
+  import { app } from './lib/app-state.svelte';
   import { installGuard } from './lib/guard';
   import { navigate, router } from './lib/router.svelte';
   import BurnDemo from './screens/BurnDemo.svelte';
@@ -14,12 +17,17 @@
 
   let concealed = $state(false);
 
-  onMount(() => installGuard((value) => (concealed = value)));
+  onMount(() => {
+    void restore();
+    return installGuard((value) => (concealed = value));
+  });
 
   const burnDemo = import.meta.env.DEV ? () => navigate('burn-demo') : undefined;
 </script>
 
-{#if router.screen === 'welcome'}
+{#if app.booting}
+  <!-- Memulihkan sesi; tidak menampilkan Welcome sesaat sebelum Home (PRD §5.4 langkah 6). -->
+{:else if router.screen === 'welcome'}
   <Welcome onBurnDemo={burnDemo} />
 {:else if router.screen === 'register'}
   <Register />
@@ -38,6 +46,8 @@
 {:else if import.meta.env.DEV && router.screen === 'burn-demo'}
   <BurnDemo />
 {/if}
+
+<SessionBanner />
 
 {#if concealed}
   <div class="concealed-overlay" aria-hidden="true"></div>

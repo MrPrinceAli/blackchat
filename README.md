@@ -41,7 +41,9 @@ pnpm check:inline   # HTML build tanpa script/style inline (CSP)
 pnpm test:e2e       # Playwright (pertama kali: pnpm exec playwright install chromium)
 ```
 
-Relay lokal butuh `apps/relay/.dev.vars` (salin dari `.dev.vars.example`).
+Relay lokal butuh `apps/relay/.dev.vars` (salin dari `.dev.vars.example`, isi `SALT_SECRET` dengan `openssl rand -hex 32`). `pnpm dev` menerapkan migrasi D1 lokal lalu menjalankan relay di `localhost:8787` dan web di `localhost:5173`.
+
+E2E (`pnpm test:e2e`) menyalakan relay lokal tersendiri (`e2e:serve`, state dikosongkan tiap run) dan preview web dengan CSP produksi. WebKit opsional: `E2E_WEBKIT=1 pnpm test:e2e` (pertama kali: `pnpm exec playwright install webkit`).
 
 ## Alur kerja
 

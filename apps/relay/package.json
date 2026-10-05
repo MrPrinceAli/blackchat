@@ -4,11 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --env test",
+    "dev": "wrangler d1 migrations apply DB --local --env test && wrangler dev --env test",
     "build": "wrangler deploy --dry-run --env \"\" --outdir dist",
     "typecheck": "tsc -p tsconfig.json && tsc -p test/tsconfig.json",
     "test": "vitest run",
-    "check:bundle": "node ../../tooling/check-relay-bundle.js dist/index.js"
+    "check:bundle": "node ../../tooling/check-relay-bundle.js dist/index.js",
+    "e2e:serve": "rm -rf .wrangler/e2e && wrangler d1 migrations apply DB --local --env test --persist-to .wrangler/e2e && wrangler dev --env test --port 8787 --persist-to .wrangler/e2e --var SALT_SECRET:5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a --var ALLOWED_ORIGIN:http://localhost:4173"
   },
   "dependencies": {
     "@blackchat/protocol": "workspace:*",

@@ -2,9 +2,13 @@
   import type { Ttl } from '@blackchat/protocol';
   import AccountClock from '../components/AccountClock.svelte';
   import TimerPicker from '../components/TimerPicker.svelte';
+  import { end } from '../lib/account';
+  import { app } from '../lib/app-state.svelte';
   import { navigate } from '../lib/router.svelte';
-  import { sample } from '../lib/sample';
   import { strings } from '../lib/strings';
+
+  // Daftar percakapan diisi dari relay di W8.
+  const rooms: { username: string; unread: number }[] = [];
 
   let query = $state('');
   let picking = $state(false);
@@ -13,12 +17,8 @@
 
 <main class="screen">
   <header class="top">
-    <span class="brand">{strings.appName}</span>
-    <AccountClock
-      remainingMs={sample.remainingMs}
-      onExpire={() => navigate('expired')}
-      showWarning
-    />
+    <span class="brand">{strings.appName} <span class="me code muted">@{app.username}</span></span>
+    <AccountClock remainingMs={app.remainingMs} onExpire={() => void end('expired')} showWarning />
     <button
       class="icon"
       type="button"
@@ -54,11 +54,11 @@
     </section>
   {/if}
 
-  {#if sample.rooms.length === 0}
+  {#if rooms.length === 0}
     <p class="muted">{strings.home.empty}</p>
   {:else}
     <ul class="rooms">
-      {#each sample.rooms as room (room.username)}
+      {#each rooms as room (room.username)}
         <li>
           <button type="button" class="room" onclick={() => navigate('chat')}>
             <span class="code">@{room.username}</span>
@@ -86,6 +86,10 @@
   .brand {
     flex: 1;
     font-weight: 600;
+  }
+  .me {
+    font-weight: 400;
+    font-size: var(--step--1);
   }
   .icon {
     width: 44px;
