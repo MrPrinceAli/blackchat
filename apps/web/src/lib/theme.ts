@@ -1,4 +1,4 @@
-// Preferensi tema: satu-satunya data di localStorage (PRD §10.2, §12 aturan 6).
+// Preferensi tampilan: tema dan bahasa, satu-satunya data di localStorage (PRD §10.2, §12 aturan 6; D-024).
 export type ThemePreference = 'system' | 'dark' | 'light';
 
 const KEY = 'bc.theme';
@@ -28,4 +28,27 @@ export function saveTheme(preference: ThemePreference): void {
     // Storage diblokir (mode privat): tema tetap berlaku untuk sesi ini saja.
   }
   applyTheme(preference);
+}
+
+// ================================================================ bahasa (D-024)
+
+export type Lang = 'en' | 'id';
+const LANG_KEY = 'bc.lang';
+
+/** Bahasa tersimpan; default Inggris. */
+export function readLang(): Lang {
+  try {
+    return localStorage.getItem(LANG_KEY) === 'id' ? 'id' : 'en';
+  } catch {
+    return 'en';
+  }
+}
+
+export function saveLang(lang: Lang): void {
+  try {
+    if (lang === 'en') localStorage.removeItem(LANG_KEY);
+    else localStorage.setItem(LANG_KEY, lang);
+  } catch {
+    // Storage diblokir (mode privat): bahasa tetap berlaku untuk sesi ini saja.
+  }
 }

@@ -1,6 +1,6 @@
 // Gambar README: banner, social preview, dan screenshot aplikasi (dark/light, mobile/desktop).
 // Bukan bagian suite test. Jalankan: pnpm readme:assets (butuh relay & build lokal seperti E2E).
-import { copyFileSync } from 'node:fs';
+import { copyFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { PASSWORD, relay } from '../../e2e/helpers';
@@ -248,17 +248,38 @@ test('banner & social preview', async ({ browser }) => {
 test('ikon aplikasi & og image', async ({ browser }) => {
   const page = await browser.newPage({ deviceScaleFactor: 1 });
   const file = pathToFileURL('tooling/readme-assets/icon.html').href;
-  for (const [name, size, pad] of [
-    ['apple-touch-icon.png', 180, 0.72],
-    ['icon-192.png', 192, 0.72],
-    ['icon-512.png', 512, 0.72],
-    ['icon-maskable-512.png', 512, 0.56],
+  for (const [name, size, pad, radius] of [
+    ['favicon-32.png', 32, 0.7, 0.22],
+    ['favicon-64.png', 64, 0.66, 0.22],
+    ['apple-touch-icon.png', 180, 0.58, 0],
+    ['icon-192.png', 192, 0.58, 0],
+    ['icon-512.png', 512, 0.58, 0],
+    ['icon-maskable-512.png', 512, 0.44, 0],
   ] as const) {
     await page.setViewportSize({ width: size, height: size });
-    await page.goto(`${file}?s=${size}&pad=${pad}`);
-    await page.locator('body[data-ready="1"]').waitFor();
-    await page.locator('#icon').screenshot({ path: `apps/web/public/${name}` });
+    await page.goto(`${file}?s=${size}&pad=${pad}&r=${radius}`);
+    await page.locator('body[data-ready="1"]').waitFor({ state: 'attached' });
+    await page
+      .locator('#icon')
+      .screenshot({ path: `apps/web/public/${name}`, omitBackground: true });
   }
   await page.close();
   copyFileSync(`${ASSETS}/social-preview.png`, 'apps/web/public/og.png');
+});
+
+test('data wordmark', async ({ browser }) => {
+  const page = await browser.newPage();
+  await page.goto(pathToFileURL('tooling/readme-assets/wordmark.html').href);
+  // Halaman generator kosong (tak terlihat): tunggu atributnya saja.
+  await page.locator('body[data-ready="1"]').waitFor({ state: 'attached' });
+  const data = await page.evaluate(() => (window as unknown as { __wordmark: unknown }).__wordmark);
+  writeFileSync(
+    'apps/web/src/lib/wordmark.ts',
+    `// DIBUAT OTOMATIS oleh pnpm readme:assets (tooling/readme-assets/wordmark.html). Jangan diedit manual.
+// Wordmark: "blackch" sebagai teks, "at" melebur jadi sel piksel [x, y, sisi, opacity];
+// satuan = font-size 100, y relatif terhadap baseline (negatif = ke atas).
+export const WORDMARK = ${JSON.stringify(data)} as const;
+`,
+  );
+  await page.close();
 });

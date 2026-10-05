@@ -1,6 +1,7 @@
 <script lang="ts">
-  // Kepala layar masuk/daftar: tombol kembali, nama aplikasi, dan tile logo di atas judul.
+  // Kepala layar masuk/daftar: tombol kembali (logo wordmark ada di atas judul).
   import Icon from './Icon.svelte';
+  import LangToggle from './LangToggle.svelte';
   import { strings } from '../lib/strings';
 
   let { onBack, disabled = false }: { onBack: () => void; disabled?: boolean } = $props();
@@ -14,18 +15,13 @@
     aria-label={strings.chat.back}
     {disabled}><Icon name="back" /></button
   >
-  <span class="brand code" aria-hidden="true">{strings.appName}</span>
+  <LangToggle />
 </header>
 
 <style>
   .auth-header {
-    display: grid;
-    grid-template-columns: 44px 1fr 44px;
+    display: flex;
     align-items: center;
-  }
-  .brand {
-    justify-self: center;
-    font-size: var(--step--1);
-    color: var(--muted);
+    justify-content: space-between;
   }
 </style>

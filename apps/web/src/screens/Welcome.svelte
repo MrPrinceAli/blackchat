@@ -1,13 +1,15 @@
 <script lang="ts">
-  import Icon from '../components/Icon.svelte';
-  import Logo from '../components/Logo.svelte';
+  import Icon, { type IconName } from '../components/Icon.svelte';
+  import LangToggle from '../components/LangToggle.svelte';
   import SecretBubble from '../components/SecretBubble.svelte';
+  import Wordmark from '../components/Wordmark.svelte';
   import { navigate } from '../lib/router.svelte';
   import { strings } from '../lib/strings';
 
   let { onBurnDemo }: { onBurnDemo?: (() => void) | undefined } = $props();
 
-  const preview = strings.welcome.preview;
+  const preview = $derived(strings.welcome.preview);
+  const stackIcons: IconName[] = ['exchange', 'signature', 'lock', 'hash'];
   // Pratinjau berulang: pesan menghitung mundur, melebur (BurnFx asli), lalu mulai lagi.
   let round = $state(0);
 </script>
@@ -15,13 +17,15 @@
 <main class="screen welcome">
   <header class="masthead">
     <span class="eyebrow">{strings.welcome.eyebrow}</span>
-    <span class="eyebrow edition">{strings.welcome.edition}</span>
+    <div class="masthead-end">
+      <span class="eyebrow edition">{strings.welcome.edition}</span>
+      <LangToggle />
+    </div>
   </header>
 
   <div class="layout">
     <section class="hero">
-      <Logo size={64} animated />
-      <h1 class="brand">{strings.appName}</h1>
+      <h1 class="brand" aria-label={strings.appName}><Wordmark size={120} /></h1>
       <p class="tagline">
         <span>{strings.welcome.taglineMessages}</span>
         <span class="muted">{strings.welcome.taglineAccount}</span>
@@ -81,7 +85,17 @@
   </div>
 
   <footer class="foot">
-    <span class="code">{strings.welcome.stack}</span>
+    <ul class="stack" aria-label={strings.welcome.stackLabel}>
+      {#each strings.welcome.stack as item, i (item.name)}
+        <li>
+          <span class="glyph" aria-hidden="true"
+            ><Icon name={stackIcons[i] ?? 'lock'} size={14} /></span
+          >
+          <span class="code name">{item.name}</span>
+          <span class="role">{item.role}</span>
+        </li>
+      {/each}
+    </ul>
   </footer>
 </main>
 
@@ -96,6 +110,14 @@
     gap: var(--space-4);
     padding-top: var(--space-2);
   }
+  .masthead {
+    align-items: center;
+  }
+  .masthead-end {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
   .masthead .eyebrow {
     white-space: nowrap;
   }
@@ -104,13 +126,38 @@
       display: none;
     }
   }
+  /* Layar sangat sempit: label dekoratif kiri mengalah pada toggle bahasa. */
+  @media (max-width: 400px) {
+    .masthead > .eyebrow {
+      display: none;
+    }
+    .masthead {
+      justify-content: flex-end;
+    }
+  }
+  /* Lampu indikator merah (satu-satunya warna, D-023): berdenyut pelan dengan cincin yang memudar. */
   .edition::before {
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
+    background: var(--signal);
+    outline: 1px solid var(--signal);
+    outline-offset: 0;
     animation: pulse 2.4s ease-in-out infinite;
   }
   @keyframes pulse {
-    50% {
-      opacity: 0.25;
+    0% {
+      outline-offset: 0;
+      outline-color: var(--signal);
+    }
+    60% {
+      opacity: 0.55;
+      outline-offset: 5px;
+      outline-color: transparent;
+    }
+    100% {
+      outline-offset: 5px;
+      outline-color: transparent;
     }
   }
 
@@ -125,11 +172,14 @@
     gap: var(--space-6);
   }
   .brand {
-    font-size: var(--step-4);
-    font-weight: 600;
-    line-height: 0.92;
-    letter-spacing: -0.055em;
-    margin-top: calc(-1 * var(--space-2));
+    width: 100%;
+    margin: var(--space-6) 0 var(--space-2);
+    line-height: 0;
+  }
+  /* Wordmark mengikuti lebar kolom (maks 560 px), tinggi proporsional. */
+  .brand :global(.wordmark) {
+    width: min(100%, 560px);
+    height: auto;
   }
   .tagline {
     display: grid;
@@ -211,9 +261,44 @@
   }
 
   .foot {
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--line);
+  }
+  .stack {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-3) var(--space-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .stack li {
+    display: grid;
+    grid-template-columns: 26px 1fr;
+    column-gap: var(--space-3);
+    align-items: center;
+    min-width: 0;
+  }
+  .glyph {
+    grid-row: span 2;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--line-strong);
+    border-radius: 5px;
+    color: var(--fg);
+  }
+  .name {
+    font-size: var(--step--2);
+    color: var(--fg);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .role {
     font-size: var(--step--2);
     color: var(--muted);
-    overflow-wrap: anywhere;
   }
 
   @media (min-width: 900px) {

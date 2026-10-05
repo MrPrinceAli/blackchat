@@ -14,6 +14,9 @@
     lock: 'M7 11V8a5 5 0 0 1 10 0v3M5.5 11h13v10h-13z M12 15v2',
     chevron: 'm9 6 6 6-6 6',
     image: 'M4 5h16v14H4zM4 15l4.5-4.5L13 15m-1-1 2.5-2.5L20 17M15.5 8.5h.01',
+    exchange: 'M4 8h14m-4-4 4 4-4 4M20 16H6m4-4-4 4 4 4',
+    signature: 'M14.5 5.5l4 4L9 19H5v-4l9.5-9.5ZM3 22h18',
+    hash: 'M10 3 8 21M16 3l-2 18M4 8.5h16M3.5 15.5h16',
   } as const;
   export type IconName = keyof typeof PATHS;
 </script>

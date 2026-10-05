@@ -1,50 +1,77 @@
 <!doctype html>
-<!-- Ikon aplikasi (apple-touch-icon, manifest). Dirender ke PNG oleh readme.shots.ts (?s=…&pad=…). -->
+<!--
+  Ikon aplikasi & favicon: huruf "b" (Instrument Sans Bold) dengan piksel yang terlepas di kanan atas,
+  gema wordmark yang melebur. Dirender ke PNG oleh readme.shots.ts (?s=ukuran&pad=porsi&r=sudut).
+-->
 <html lang="id">
   <head>
     <meta charset="utf-8" />
     <title>blackchat icon</title>
     <style>
+      @font-face {
+        font-family: 'Instrument Sans';
+        src: url('../../apps/web/public/fonts/instrument-sans-latin-wght.woff2') format('woff2');
+        font-weight: 400 700;
+      }
       html,
       body {
         margin: 0;
-        background: #000;
+        background: transparent;
       }
-      svg {
+      canvas {
         display: block;
       }
     </style>
   </head>
   <body>
-    <svg id="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-      <rect width="32" height="32" fill="#000" />
-      <g id="mark" fill="#fff">
-        <path
-          fill-rule="evenodd"
-          d="M2 7h18v2h2v2h4v12H12l-5 5v-5H2z M6 13h12v2.5H6z M6 17.5h7v2.5H6z"
-        />
-        <rect x="22" y="7" width="2" height="2" opacity=".85" />
-        <rect x="26" y="6" width="2" height="2" opacity=".6" />
-        <rect x="24" y="3" width="2" height="2" opacity=".45" />
-        <rect x="28.5" y="2" width="1.5" height="1.5" opacity=".3" />
-      </g>
-    </svg>
+    <canvas id="icon"></canvas>
     <script>
       const params = new URLSearchParams(location.search);
       const size = Number(params.get('s') ?? 512);
-      // Porsi kanvas untuk mark (maskable butuh zona aman ~60%).
-      const scale = Number(params.get('pad') ?? 0.72);
-      const icon = document.getElementById('icon');
-      icon.setAttribute('width', size);
-      icon.setAttribute('height', size);
-      const offset = (32 - 32 * scale) / 2;
-      document
-        .getElementById('mark')
-        .setAttribute(
-          'transform',
-          `translate(${offset + 1.2 * scale} ${offset + 0.6 * scale}) scale(${scale})`,
-        );
-      document.body.dataset.ready = '1';
+      const pad = Number(params.get('pad') ?? 0.62); // tinggi huruf relatif terhadap kanvas
+      const radius = Number(params.get('r') ?? 0); // 0 = persegi penuh (iOS/Android membulatkan sendiri)
+
+      async function draw() {
+        await document.fonts.load('700 100px "Instrument Sans"');
+        const c = document.getElementById('icon');
+        c.width = size;
+        c.height = size;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.roundRect(0, 0, size, size, size * radius);
+        ctx.fill();
+
+        // Ukuran font agar tinggi "b" = pad × kanvas; huruf sedikit ke kiri untuk ruang piksel.
+        ctx.font = '700 100px "Instrument Sans"';
+        const m = ctx.measureText('b');
+        const glyphH = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+        const fs = (100 * size * pad) / glyphH;
+        ctx.font = `700 ${fs}px "Instrument Sans"`;
+        const mb = ctx.measureText('b');
+        const w = mb.actualBoundingBoxLeft + mb.actualBoundingBoxRight;
+        const h = mb.actualBoundingBoxAscent + mb.actualBoundingBoxDescent;
+        const x = (size - w) / 2 - size * 0.06 + mb.actualBoundingBoxLeft;
+        const y = (size + h) / 2 - mb.actualBoundingBoxDescent;
+        ctx.fillStyle = '#fff';
+        ctx.fillText('b', x, y);
+
+        // Piksel lepas di kanan atas mangkuk huruf.
+        const cell = Math.max(1, Math.round(size * 0.07));
+        const right = x - mb.actualBoundingBoxLeft + w;
+        const top = y - h;
+        const px = [
+          [right + cell * 0.4, top + h * 0.42, 0.85],
+          [right + cell * 1.6, top + h * 0.22, 0.6],
+          [right + cell * 0.9, top + h * 0.02, 0.4],
+        ];
+        for (const [px0, py0, a] of px) {
+          ctx.fillStyle = `rgba(255,255,255,${a})`;
+          ctx.fillRect(Math.round(px0), Math.round(py0), cell, cell);
+        }
+        document.body.dataset.ready = '1';
+      }
+      draw();
     </script>
   </body>
 </html>

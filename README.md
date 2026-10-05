@@ -49,6 +49,7 @@ Kebanyakan aplikasi chat menyimpan semuanya selamanya. blackchat kebalikannya: *
 | 🖼️ **Gambar tanpa jejak** | EXIF & GPS dibuang, gambar digambar ulang di canvas, dipotong menjadi chunk berukuran identik sebelum dienkripsi. |
 | ✅ **Safety number + QR** | Verifikasi kunci lawan bicara; peringatan otomatis jika username dipakai orang lain dengan kunci berbeda. |
 | ↩️ **Batalkan & sepakati timer** | Tarik pesan dari kedua sisi dan server. Perubahan timer hanya berlaku jika kedua pihak setuju. |
+| 🌐 **Dua bahasa** | Inggris (default) dan Indonesia, ganti langsung lewat toggle `EN · ID`. Layout dua panel di desktop, satu kolom di ponsel. |
 | 💸 **Gratis dioperasikan** | Vercel (web statis) + Cloudflare Workers, Durable Objects, D1 (relay). |
 
 ## ✦ Tampilan
@@ -234,6 +235,7 @@ Sengaja minimal. Semua versi dipin persis (`.npmrc` `save-exact=true`); dependen
 **blackchat** is an end-to-end encrypted, ephemeral one-to-one chat for the browser.
 
 - **Sign up with just a username and password.** No email, no phone number, no recovery. Accounts self-destruct after **72 hours**.
+- **English by default**, with an Indonesian toggle. Two-pane layout on desktop, single column on mobile.
 - **Messages burn after reading.** A 3/5/7/10-second timer starts only once the message is actually visible on the recipient's screen; then it dissolves into particles on both sides and is deleted from the server.
 - **The server is blind.** It only ever stores ciphertext (libsodium: X25519, Ed25519, XChaCha20-Poly1305, Argon2id). It does not store who talks to whom, IP addresses, or message types. Room names are derived from a Diffie-Hellman secret, conversation headers are sealed and fixed-size, and image chunks are identical in size.
 - **Images** are re-drawn through a canvas to strip EXIF/GPS before encryption.
@@ -241,7 +243,7 @@ Sengaja minimal. Semua versi dipin persis (`.npmrc` `save-exact=true`); dependen
 - **Runs on free tiers:** static SPA on Vercel, relay on Cloudflare Workers + Durable Objects + D1.
 - **Tested:** 899 unit/integration tests (including the relay inside workerd), 29 Playwright end-to-end scenarios against the production build with the production CSP, and all 32 acceptance criteria mapped to tests.
 
-The UI is in Indonesian. The threat model is in [SECURITY.md](SECURITY.md); deployment is in [docs/DEPLOY.md](docs/DEPLOY.md).
+The threat model is in [SECURITY.md](SECURITY.md); deployment is in [docs/DEPLOY.md](docs/DEPLOY.md).
 
 </details>
 

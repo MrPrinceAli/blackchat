@@ -2,7 +2,8 @@
   import type { Ttl } from '@blackchat/protocol';
   import AccountClock from '../components/AccountClock.svelte';
   import Icon from '../components/Icon.svelte';
-  import Logo from '../components/Logo.svelte';
+  import LangToggle from '../components/LangToggle.svelte';
+  import Wordmark from '../components/Wordmark.svelte';
   import TimerPicker from '../components/TimerPicker.svelte';
   import { end } from '../lib/account';
   import { app } from '../lib/app-state.svelte';
@@ -15,6 +16,9 @@
   } from '../lib/chat.svelte';
   import { navigate } from '../lib/router.svelte';
   import { strings } from '../lib/strings';
+
+  // Di layar lebar Home menjadi sidebar (nav) di samping panel chat (D-023).
+  let { embedded = false }: { embedded?: boolean } = $props();
 
   let query = $state('');
   let picking = $state<string | null>(null);
@@ -78,15 +82,25 @@
   }
 </script>
 
-<main class="screen home">
+<svelte:element
+  this={embedded ? 'nav' : 'main'}
+  class="screen home"
+  class:embedded
+  aria-label={embedded ? strings.home.conversations : undefined}
+>
   <header class="top">
-    <span class="brand"><Logo size={24} /><span>{strings.appName}</span></span>
-    <button
-      class="icon-button"
-      type="button"
-      aria-label={strings.home.settings}
-      onclick={() => navigate('settings')}><Icon name="settings" /></button
+    <span class="brand"
+      ><Wordmark size={30} /><span class="visually-hidden">{strings.appName}</span></span
     >
+    <span class="top-end">
+      <LangToggle />
+      <button
+        class="icon-button"
+        type="button"
+        aria-label={strings.home.settings}
+        onclick={() => navigate('settings')}><Icon name="settings" /></button
+      >
+    </span>
   </header>
 
   <section class="identity card">
@@ -147,24 +161,30 @@
     </div>
     {#if rooms.length === 0}
       <div class="empty">
-        <span class="empty-mark" aria-hidden="true"><Logo size={40} /></span>
+        <span class="empty-mark" aria-hidden="true"><Wordmark size={30} /></span>
         <p class="muted">{chat.loading ? strings.home.loading : strings.home.empty}</p>
       </div>
     {:else}
       <ul class="rooms">
         {#each rooms as room (room.inboxRoomId)}
           <li>
+            <!-- "@" digambar lewat CSS: teks persis "@nama" hanya ada di header chat (panel kanan). -->
             <button
               type="button"
               class="room"
               class:unread={room.unread > 0}
+              class:active={chat.open?.entry.inboxRoomId === room.inboxRoomId}
+              aria-label={room.unread > 0
+                ? `@${room.peer.peerUsername}, ${strings.home.unread(room.unread)}`
+                : `@${room.peer.peerUsername}`}
+              aria-current={chat.open?.entry.inboxRoomId === room.inboxRoomId ? 'true' : undefined}
               onclick={() => open(room.inboxRoomId)}
               disabled={busy}
             >
               <span class="avatar code" aria-hidden="true"
                 >{room.peer.peerUsername.slice(0, 1)}</span
               >
-              <span class="name code">@{room.peer.peerUsername}</span>
+              <span class="name code">{room.peer.peerUsername}</span>
               {#if room.unread > 0}
                 <span class="badge" aria-label={strings.home.unread(room.unread)}>
                   <span class="square" aria-hidden="true"></span><span class="code"
@@ -179,17 +199,29 @@
       </ul>
     {/if}
   </section>
-</main>
+</svelte:element>
 
 <style>
   .home {
     gap: var(--space-5);
+  }
+  /* Sidebar desktop: mengisi kolom kiri, tanpa batas lebar layar ponsel. */
+  .home.embedded {
+    max-width: none;
+    min-height: 100%;
+    padding: var(--space-5) var(--space-5) var(--space-6);
+    animation: none;
   }
   .top {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-right: calc(-1 * var(--space-2));
+  }
+  .top-end {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
   }
   .brand {
     display: inline-flex;
@@ -328,10 +360,26 @@
     font-size: var(--step--1);
     text-transform: lowercase;
   }
+  .room.active {
+    position: relative;
+    background: var(--tint-2);
+  }
+  .room.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 2px;
+    background: var(--fg);
+  }
   .room.unread .avatar {
     background: var(--fg);
     color: var(--bg);
     border-color: var(--fg);
+  }
+  .name::before {
+    content: '@';
   }
   .name {
     overflow: hidden;

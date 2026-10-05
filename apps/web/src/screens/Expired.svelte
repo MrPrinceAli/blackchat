@@ -1,12 +1,12 @@
 <script lang="ts">
-  import LogoTile from '../components/LogoTile.svelte';
+  import Wordmark from '../components/Wordmark.svelte';
   import { navigate } from '../lib/router.svelte';
   import { strings } from '../lib/strings';
 </script>
 
 <main class="screen expired">
   <div class="body">
-    <LogoTile size={72} />
+    <Wordmark size={48} />
     <p class="eyebrow">{strings.expired.eyebrow}</p>
     <p class="message">{strings.expired.message}</p>
     <button class="button primary" type="button" onclick={() => navigate('register')}

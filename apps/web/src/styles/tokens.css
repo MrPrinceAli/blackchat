@@ -76,4 +76,14 @@
   --line-strong: color-mix(in srgb, var(--fg) 30%, var(--bg));
   --dot: color-mix(in srgb, var(--fg) 16%, transparent);
   --glass: color-mix(in srgb, var(--bg) 78%, transparent);
+  /* Satu-satunya warna: lampu indikator di Welcome (D-023). */
+  --signal: #ff453a;
+}
+:root[data-theme='light'] {
+  --signal: #d70015;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --signal: #d70015;
+  }
 }

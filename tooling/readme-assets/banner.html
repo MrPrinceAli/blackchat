@@ -95,7 +95,7 @@
 
         const img = wctx.getImageData(0, 0, word.width, word.height);
         const cell = Math.round(5 * DPR);
-        const start = (pad + wctx.measureText('black').width + size * 0.02) * DPR;
+        const start = (pad + wctx.measureText('blackch').width) * DPR;
         const end = (pad + wordWidth) * DPR;
         const out = ctx.createImageData(word.width, word.height);
         ctx.save();
@@ -123,17 +123,17 @@
             const a = img.data[i + 3] / 255;
             if (a < 0.4) continue;
             const t = Math.max(0, (x - start) / (end - start));
-            if (rand() < t * 0.6) continue;
-            const lift = t * t * (H * 0.16) * DPR * (0.4 + rand() * 0.9);
-            const drift = (rand() - 0.3) * t * 30 * DPR;
-            const alpha = Math.max(0.12, 1 - t * (0.4 + rand() * 0.5));
+            if (rand() < t * t * 0.55) continue;
+            const lift = t * t * t * size * 0.26 * DPR * (0.3 + rand() * 0.9);
+            const drift = (rand() - 0.25) * t * t * size * 0.14 * DPR;
+            const alpha = Math.max(0.22, 1 - t * t * (0.35 + rand() * 0.5));
             const shade = 200 + Math.round(rand() * 55);
             ctx.fillStyle = `rgba(${shade},${shade},${shade},${alpha})`;
             ctx.fillRect(
               x + drift,
               y - lift,
-              cell - (t > 0.1 ? DPR : 0),
-              cell - (t > 0.1 ? DPR : 0),
+              cell - (t > 0.18 ? DPR : 0),
+              cell - (t > 0.18 ? DPR : 0),
             );
           }
         }
@@ -143,12 +143,12 @@
         const tag = Math.round(H * 0.058);
         ctx.font = `400 ${tag}px "Instrument Sans"`;
         ctx.fillStyle = 'rgba(255,255,255,0.86)';
-        ctx.fillText('Pesan yang melebur setelah dibaca.', pad, baseline + tag * 2.1);
+        ctx.fillText('Messages that burn after reading.', pad, baseline + tag * 2.1);
 
         // Footer mono.
         ctx.font = `400 ${mono}px "Martian Mono"`;
         ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        const foot = 'end-to-end encrypted · zero plaintext on server · akun hangus 72 jam';
+        const foot = 'end-to-end encrypted · zero plaintext on server · accounts expire in 72 h';
         ctx.fillText(foot, pad, Math.round(H * 0.84) + mono * 2);
 
         document.body.dataset.ready = '1';
