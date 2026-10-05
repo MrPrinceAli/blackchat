@@ -14,6 +14,10 @@ test('host relay masuk ke connect-src CSP, sisa CSP utuh, bisa diganti berulang'
   );
   assert.match(once, /frame-ancestors 'none'/);
   assert.doesNotMatch(once, /RELAY_HOST/);
+  // Hanya baris CSP yang berubah; format file tetap.
+  const changed = once.split('\n').filter((line, i) => line !== vercel.split('\n')[i]);
+  assert.equal(changed.length, 1);
+  assert.equal(once.split('\n').length, vercel.split('\n').length);
   const twice = updateVercelJson(once, 'lain.workers.dev');
   assert.match(twice, /wss:\/\/lain\.workers\.dev https:\/\/lain\.workers\.dev/);
   assert.doesNotMatch(twice, /relay\.example/);
