@@ -144,3 +144,17 @@ Safety number tetap persis PRD §4.4 (tanpa label).
 - **E2E memakai relay lokal sungguhan** (`pnpm --filter @blackchat/relay e2e:serve`: `wrangler dev --env test`, D1/DO lokal yang dikosongkan tiap run). Route test baru `POST /__test/reset-limits` (method `LimiterDO.reset` tidak melakukan apa pun di produksi). E2E dijalankan satu worker karena jam relay dan rate limit dipakai bersama. Project WebKit opsional (`E2E_WEBKIT=1`).
 - **Belum aktif di W7:** daftar room & chat sungguhan (W8), hapus akun (W11; tombolnya dinonaktifkan), Verify (W11).
 **Konsekuensi:** Seluruh kriteria sesi PRD §15.2 (refresh, kunci 10 menit, refresh setelah tidak aktif, tab baru, tab duplikat, storage kosong setelah kunci/logout) diuji E2E di Chromium (320 px & desktop) dan WebKit.
+
+## D-016 — Detail chat teks (2026-10-05)
+**Konteks:** Implementasi PRD §7–§8 di client, plus penyaringan yang dijanjikan D-013.
+**Keputusan:**
+- **Entri room disaring di client.** Header dibuka dengan kunci sendiri, lalu kunci room diturunkan ulang dari header; `inboxRoomId` hasilnya harus sama dengan entri. Entri dengan header gagal dibuka, `inboxRoomId` tidak cocok (entri palsu; siapa pun bisa menyegel header ke kunci publik kita), atau lawan yang sudah hangus langsung di-`rooms.forget`. Event untuk `inboxRoomId` yang tidak dikenal hanya memicu muat ulang daftar.
+- **Data lookup diverifikasi** sebelum membuat room: `userId` harus sesuai `edPk`, dan `xPkSig` valid.
+- **Saat membuka room**, lawan di-lookup ulang. Tidak ada, atau `edPk` berbeda → room dilupakan + "Akun @x sudah tidak ada." Dua entri dengan username sama → yang lebih cepat hangus dilupakan.
+- **Sinkron penuh (`sinceSeq = 0`)** setiap membuka room dan setiap koneksi siap kembali. Maksimal 200 pesan per room, dan cara ini sekaligus mendeteksi pesan yang sudah lebur atau dibatalkan saat offline (PRD §8 menyebut `sinceSeq = lastSeq` untuk reconnect; sinkron penuh lebih sederhana dan lebih benar).
+- **Syarat "dilihat"** = 50 % bubble di viewport, **atau** bubble menutupi ≥ 50 % tinggi viewport (pesan 2000 karakter di layar 320 px tetap bisa memicu timer), ditambah tab terlihat & fokus.
+- **Antrean:** pesan masuk terdepan = seq terkecil yang belum dibuang. Pesan di belakangnya disensor sampai yang terdepan selesai melebur termasuk animasi dan label "Dilebur".
+- **Pesan terkirim selalu membawa `sealedHeaderForPeer`**, sehingga room muncul lagi di daftar lawan walau lawan pernah melupakannya.
+- **Room terakhir** (`inboxRoomId` sendiri) disimpan terenkripsi di sesi; refresh membukanya kembali setelah koneksi siap.
+- **Menu konteks** dinonaktifkan sampai W9 (batalkan pesan). Pesan gambar diabaikan sampai W10. Blokir dan penyimpanan status verifikasi di W11. Layar Verify sudah menampilkan safety number sungguhan.
+**Konsekuensi:** Kriteria PRD §15.2 untuk chat teks diuji E2E dengan dua pengguna (320 px & desktop): pesan saat offline, timer saat terlihat ±500 ms dua arah, tab ditutup, 5 pesan berurutan, XSS, refresh room + timer akurat, dan username yang didaftarkan ulang.

@@ -1,87 +1,96 @@
 <script lang="ts">
   import Composer from '../components/Composer.svelte';
-  import ContextMenu from '../components/ContextMenu.svelte';
-  import SecretBubble from '../components/SecretBubble.svelte';
+  import SecretBubble, { type BubbleStatus } from '../components/SecretBubble.svelte';
+  import { app } from '../lib/app-state.svelte';
+  import {
+    chat,
+    closeRoom,
+    markSeen,
+    queueFront,
+    removeMessage,
+    sendText,
+    type ChatMessage,
+  } from '../lib/chat.svelte';
   import { noContextMenu } from '../lib/guard';
   import { navigate } from '../lib/router.svelte';
-  import { sample, type SampleMessage } from '../lib/sample';
   import { strings } from '../lib/strings';
 
-  let messages = $state<SampleMessage[]>(sample.messages.map((m) => ({ ...m })));
-  let menu = $state<{ x: number; y: number; id: string } | null>(null);
   let headerMenu = $state(false);
-  let counter = 0;
 
-  function remove(id: string) {
-    messages = messages.filter((m) => m.id !== id);
+  const front = $derived(queueFront(chat.messages));
+  const watermark = $derived(app.userId.slice(-6));
+
+  /** Status tampilan (PRD §7.1): pesan masuk di belakang antrean disensor "Menunggu giliran". */
+  function displayStatus(m: ChatMessage): BubbleStatus {
+    if (m.mine) return m.status;
+    if (m.status === 'opened') return 'opened';
+    return m.msgId === front ? 'delivered' : 'queued';
   }
 
-  function send(text: string) {
-    messages = [...messages, { id: `local-${++counter}`, mine: true, text, status: 'delivered' }];
+  async function send(text: string) {
+    try {
+      await sendText(text);
+    } catch {
+      // Pesan galat sudah ditampilkan lewat chat.chatNotice.
+    }
   }
 </script>
 
-<main class="screen chat">
-  <header class="top">
-    <button
-      class="icon"
-      type="button"
-      aria-label={strings.chat.back}
-      onclick={() => navigate('home')}>←</button
-    >
-    <span class="peer code">@{sample.peer}</span>
-    <button class="timer code" type="button" aria-label={strings.timer.propose}
-      >⧗ {strings.timer.seconds(sample.ttl)}</button
-    >
-    <button
-      class="icon"
-      type="button"
-      aria-label={strings.chat.verify}
-      onclick={() => navigate('verify')}>✓</button
-    >
-    <button
-      class="icon"
-      type="button"
-      aria-label={strings.chat.menu}
-      aria-expanded={headerMenu}
-      onclick={() => (headerMenu = !headerMenu)}>⋯</button
-    >
-  </header>
-  {#if headerMenu}
-    <div class="header-menu">
-      <button class="button" type="button" onclick={() => (headerMenu = false)}
-        >{strings.chat.block(sample.peer)}</button
+{#if chat.open}
+  {@const room = chat.open}
+  <main class="screen chat">
+    <header class="top">
+      <button class="icon" type="button" aria-label={strings.chat.back} onclick={() => closeRoom()}
+        >←</button
       >
-    </div>
-  {/if}
+      <span class="peer code">@{room.entry.peer.peerUsername}</span>
+      <span class="timer code" aria-label={strings.timer.label(room.ttl)}
+        >⧗ {strings.timer.seconds(room.ttl)}</span
+      >
+      <button
+        class="icon"
+        type="button"
+        aria-label={strings.chat.verify}
+        onclick={() => navigate('verify')}>✓</button
+      >
+      <button
+        class="icon"
+        type="button"
+        aria-label={strings.chat.menu}
+        aria-expanded={headerMenu}
+        onclick={() => (headerMenu = !headerMenu)}>⋯</button
+      >
+    </header>
+    {#if headerMenu}
+      <div class="header-menu">
+        <!-- Blokir diaktifkan di W11. -->
+        <button class="button" type="button" disabled
+          >{strings.chat.block(room.entry.peer.peerUsername)}</button
+        >
+      </div>
+    {/if}
+    {#if chat.chatNotice}<p class="notice" role="status">{chat.chatNotice}</p>{/if}
 
-  <section class="messages" aria-live="polite" use:noContextMenu>
-    {#each messages as m (m.id)}
-      <SecretBubble
-        text={m.text}
-        mine={m.mine}
-        status={m.status}
-        ttl={sample.ttl}
-        remainingMs={m.remainingMs ?? sample.ttl * 1000}
-        watermark={sample.watermark}
-        onGone={() => remove(m.id)}
-        onMenu={(x, y) => (menu = { x, y, id: m.id })}
-      />
-    {/each}
-  </section>
+    <section class="messages" aria-live="polite" use:noContextMenu>
+      {#each chat.messages as m (m.msgId)}
+        <SecretBubble
+          text={m.text}
+          mine={m.mine}
+          status={displayStatus(m)}
+          ttl={m.ttl}
+          remainingMs={m.remainingMs ?? m.ttl * 1000}
+          {watermark}
+          onSeen={() => void markSeen(m.msgId)}
+          onGone={() => removeMessage(m.msgId)}
+        />
+      {/each}
+    </section>
 
-  <Composer onSend={send} />
+    <Composer onSend={send} />
 
-  {#if menu}
-    {@const target = menu.id}
-    <ContextMenu
-      x={menu.x}
-      y={menu.y}
-      items={[{ label: strings.chat.retract, onSelect: () => remove(target) }]}
-      onClose={() => (menu = null)}
-    />
-  {/if}
-</main>
+    <!-- Menu konteks "Batalkan pesan" diaktifkan di W9. -->
+  </main>
+{/if}
 
 <style>
   .chat {
@@ -96,8 +105,7 @@
     padding-bottom: var(--space-3);
     border-bottom: 1px solid var(--line);
   }
-  .icon,
-  .timer {
+  .icon {
     min-width: 44px;
     height: 44px;
     border: 0;
@@ -117,6 +125,12 @@
     justify-content: flex-end;
     padding: var(--space-3) 0;
     border-bottom: 1px solid var(--line);
+  }
+  .notice {
+    margin-top: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--fg);
+    font-size: var(--step--1);
   }
   .messages {
     flex: 1;

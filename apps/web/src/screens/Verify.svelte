@@ -1,31 +1,48 @@
 <script lang="ts">
+  // Safety number (PRD §4.4). Status terverifikasi disimpan di blob kontak terenkripsi mulai W11.
+  import { base64urlDecode } from '@blackchat/protocol';
+  import { activeSession } from '../lib/account';
+  import { chat } from '../lib/chat.svelte';
   import { navigate } from '../lib/router.svelte';
-  import { sample } from '../lib/sample';
   import { strings } from '../lib/strings';
 
   let verified = $state(false);
+
+  const room = chat.open;
+  const session = activeSession();
+  const groups =
+    room && session
+      ? session.crypto.safetyNumber(
+          session.identity.edPk,
+          base64urlDecode(room.entry.peer.peerEdPk),
+        )
+      : [];
 </script>
 
 <main class="screen">
-  <button class="back" type="button" onclick={() => navigate('chat')} aria-label={strings.chat.back}
-    >←</button
+  <button
+    class="back"
+    type="button"
+    onclick={() => navigate(room ? 'chat' : 'home')}
+    aria-label={strings.chat.back}>←</button
   >
   <h1>{strings.verify.title}</h1>
-  <p class="muted">{strings.verify.description(sample.peer)}</p>
-  <ol class="digits code" aria-label="Safety number">
-    {#each sample.safetyNumber as group, i (i)}
-      <li>{group}</li>
-    {/each}
-  </ol>
-  <div class="qr" aria-hidden="true"></div>
-  <button
-    class="button primary"
-    type="button"
-    disabled={verified}
-    onclick={() => (verified = true)}
-  >
-    {verified ? strings.verify.verified : strings.verify.mark}
-  </button>
+  {#if room}
+    <p class="muted">{strings.verify.description(room.entry.peer.peerUsername)}</p>
+    <ol class="digits code" aria-label="Safety number">
+      {#each groups as group, i (i)}
+        <li>{group}</li>
+      {/each}
+    </ol>
+    <button
+      class="button primary"
+      type="button"
+      disabled={verified}
+      onclick={() => (verified = true)}
+    >
+      {verified ? strings.verify.verified : strings.verify.mark}
+    </button>
+  {/if}
 </main>
 
 <style>
@@ -44,10 +61,5 @@
       grid-template-columns: repeat(3, 1fr);
       font-size: var(--step-0);
     }
-  }
-  .qr {
-    width: 160px;
-    aspect-ratio: 1;
-    border: 1px solid var(--line);
   }
 </style>

@@ -2,6 +2,7 @@
   // Bubble teks rahasia (PRD §7.1, §10.2). Teks selalu dirender sebagai text node, tidak pernah HTML (PRD §7.6).
   import { MESSAGE } from '@blackchat/protocol';
   import { renderBubble } from '../lib/bubble-canvas';
+  import { seen } from '../lib/visibility';
   import { strings } from '../lib/strings';
   import BurnFx from './BurnFx.svelte';
   import Watermark from './Watermark.svelte';
@@ -17,6 +18,7 @@
     watermark,
     onGone,
     onMenu,
+    onSeen,
   }: {
     text: string | null;
     mine: boolean;
@@ -28,6 +30,8 @@
     onGone?: () => void;
     /** Minta menu konteks di posisi layar ini (hanya pesan sendiri). */
     onMenu?: (x: number, y: number) => void;
+    /** Pesan masuk terdepan benar-benar dilihat (PRD §7.2). */
+    onSeen?: () => void;
   } = $props();
 
   type Phase = 'live' | 'burning' | 'burned';
@@ -147,7 +151,14 @@
           <p class="text">{text}</p>
         </div>
       {:else}
-        <div class="bubble" bind:this={element}>
+        <div
+          class="bubble"
+          bind:this={element}
+          use:seen={{
+            enabled: status === 'delivered' && phase === 'live',
+            onSeen: () => onSeen?.(),
+          }}
+        >
           <p class="text">{text}</p>
           <Watermark mark={watermark} />
         </div>
