@@ -76,3 +76,16 @@ describe('SALT_SECRET (fail closed)', () => {
     expect(saltSecret(env)).toHaveLength(32);
   });
 });
+
+describe('route test (D-006)', () => {
+  it('reset-limits mengosongkan rate limit', async () => {
+    const { nextIp: ipFor } = await import('./helpers.js');
+    const ip = ipFor();
+    for (let i = 0; i < 30; i++) await call('GET', '/v1/account/lookup/ghost_reset', { ip });
+    expect((await call('GET', '/v1/account/lookup/ghost_reset', { ip })).status).toBe(429);
+    expect((await call('POST', '/__test/reset-limits', { body: {}, origin: null })).status).toBe(
+      200,
+    );
+    expect((await call('GET', '/v1/account/lookup/ghost_reset', { ip })).status).toBe(404);
+  });
+});

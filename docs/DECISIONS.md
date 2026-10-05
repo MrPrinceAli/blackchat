@@ -131,3 +131,16 @@ Safety number tetap persis PRD §4.4 (tanpa label).
 - **Kode khusus dev** (halaman demo lebur) dijaga dengan `import.meta.env.DEV && …` di posisi pertama kondisi supaya minifier membuangnya dari bundle produksi.
 - **Layar statis W6** memakai data contoh (`lib/sample.ts`) yang diganti di W7/W8. Layar Expired belum bisa dicapai dari alur statis; diuji di W7.
 **Konsekuensi:** bundle JS produksi 27,9 KB gzip (batas PRD §10.7: 100 KB, tanpa libsodium).
+
+## D-015 — Detail akun, sesi & koneksi web (2026-10-05)
+**Konteks:** PRD §5.4 dan §13 menetapkan perilaku sesi dan koneksi, tetapi tidak semua mekanismenya.
+**Keputusan:**
+- **Argon2id berjalan di Web Worker** dan libsodium dimuat malas (chunk terpisah). Durasi terukur di E2E (Apple Silicon): Chromium ±168 ms, WebKit (profil iPhone 13) ±186 ms. Bundle utama tanpa libsodium: 36,9 KB gzip.
+- **Login memeriksa integritas vault:** kunci publik yang diturunkan dari vault harus sama dengan `edPk`/`xPk`/`userId` dari server; jika tidak, login ditolak.
+- **Tab duplikat** dideteksi lewat `BroadcastChannel("bc-tab")`: saat dimuat, tab bertanya "siapa memegang tabId ini?" (tunggu 150 ms). Ada jawaban → tab duplikat → tabId & sessionKey baru, entri tab asli tidak disentuh. Tidak ada jawaban → refresh biasa → tabId lama dipakai lagi. Tab yang socket-nya diambil alih (4409) menampilkan "Akun ini sedang dibuka di tab lain." + "Gunakan di sini".
+- **Sisa umur akun setelah refresh** memakai `expiresAtLocal` (jam perangkat, disimpan terenkripsi) sampai `ready.remainingMs` dari server tiba dan mengoreksinya.
+- **WebSocket:** 4409 → `replaced` (tanpa reconnect otomatis); 4410 → layar Expired; 4401 dan putus jaringan → reconnect dengan backoff. Jika relay menolak handshake (misal akun sudah hangus), client terus mencoba sampai jam umur akun lokal habis lalu menampilkan Expired (diterima).
+- **Aktivitas** (`pointerdown`, `keydown`, `wheel`, `touchstart`, `scroll`) didengar di fase capture, pasif. Pengecekan kunci tiap 15 dtk dan saat `visibilitychange`/`focus`.
+- **E2E memakai relay lokal sungguhan** (`pnpm --filter @blackchat/relay e2e:serve`: `wrangler dev --env test`, D1/DO lokal yang dikosongkan tiap run). Route test baru `POST /__test/reset-limits` (method `LimiterDO.reset` tidak melakukan apa pun di produksi). E2E dijalankan satu worker karena jam relay dan rate limit dipakai bersama. Project WebKit opsional (`E2E_WEBKIT=1`).
+- **Belum aktif di W7:** daftar room & chat sungguhan (W8), hapus akun (W11; tombolnya dinonaktifkan), Verify (W11).
+**Konsekuensi:** Seluruh kriteria sesi PRD §15.2 (refresh, kunci 10 menit, refresh setelah tidak aktif, tab baru, tab duplikat, storage kosong setelah kunci/logout) diuji E2E di Chromium (320 px & desktop) dan WebKit.

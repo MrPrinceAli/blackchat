@@ -363,6 +363,12 @@ export const deleteAccountRequest: Validator<DeleteAccountRequest> = obj({
 
 export const errorResponse = obj({ error: vErrorCode });
 
+/** Respons `{}` dari update bertanda tangan (contacts, password, DELETE; D-012). */
+export const emptyResponse: Validator<Record<string, never>> = (input, path = '') =>
+  isPlainObject(input) && Object.keys(input).length === 0
+    ? ok({})
+    : fail(path, 'harus objek kosong');
+
 // ================================================================ room ops
 
 export const roomMember: Validator<RoomMember> = obj({

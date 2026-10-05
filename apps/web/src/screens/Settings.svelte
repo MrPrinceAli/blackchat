@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { end } from '../lib/account';
+  import { app } from '../lib/app-state.svelte';
   import { navigate } from '../lib/router.svelte';
-  import { sample } from '../lib/sample';
   import { strings } from '../lib/strings';
   import { readTheme, saveTheme, type ThemePreference } from '../lib/theme';
 
@@ -35,20 +36,16 @@
 
   <div class="actions">
     <button class="button" type="button">{strings.settings.changePassword}</button>
-    <button class="button" type="button" onclick={() => navigate('welcome')}
+    <button class="button" type="button" onclick={() => void end('logout')}
       >{strings.settings.signOut}</button
     >
     {#if confirming}
       <div class="field">
-        <label for="confirm-delete">{strings.settings.deleteConfirm(sample.username)}</label>
+        <label for="confirm-delete">{strings.settings.deleteConfirm(app.username)}</label>
         <input id="confirm-delete" autocomplete="off" autocapitalize="none" bind:value={typed} />
       </div>
-      <button
-        class="button primary"
-        type="button"
-        disabled={typed !== sample.username}
-        onclick={() => navigate('welcome')}
-      >
+      <!-- Penghapusan akun (room.purge di setiap room + DELETE) diaktifkan di W11. -->
+      <button class="button primary" type="button" disabled>
         {strings.settings.deleteNow}
       </button>
     {:else}

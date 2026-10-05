@@ -133,6 +133,7 @@ export const strings = {
     otherTab: 'Akun ini sedang dibuka di tab lain.',
     useHere: 'Gunakan di sini',
     reconnecting: 'Menyambung ulang...',
+    locked: 'Sesi dikunci karena tidak ada aktivitas. Masuk lagi untuk melanjutkan.',
   },
 
   errors: {

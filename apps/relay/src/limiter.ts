@@ -64,6 +64,13 @@ export class LimiterDO extends DurableObject<Env> {
     this.failures.delete(key);
   }
 
+  /** Hanya untuk test (D-006): kosongkan semua penghitung. */
+  async reset(): Promise<void> {
+    if (!__BC_TEST__) return;
+    this.hits.clear();
+    this.failures.clear();
+  }
+
   private sweep(t: number, windowMs: number): void {
     for (const [key, times] of this.hits) {
       if (times.every((at) => at <= t - Math.max(windowMs, RATE_LIMITS.REGISTER_PER_IP.windowMs))) {

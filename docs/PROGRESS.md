@@ -10,8 +10,8 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 | W3 | Crypto room & pesan | Selesai, merged | #4 → #7 |
 | W4 | Relay: akun & limiter | Selesai, merged | #10 |
 | W5 | Relay: InboxDO & RoomDO | Selesai, merged | #11 |
-| W6 | Web: fondasi & UI statis | Selesai | branch `w6-web-fondasi` |
-| W7 | Web: akun, sesi & koneksi | Belum mulai | — |
+| W6 | Web: fondasi & UI statis | Selesai, merged | #12 |
+| W7 | Web: akun, sesi & koneksi | Selesai | branch `w7-web-sesi` |
 | W8 | Chat teks end-to-end | Belum mulai | — |
 | W9 | Batalkan pesan & kesepakatan timer | Belum mulai | — |
 | W10 | Gambar | Belum mulai | — |
@@ -113,3 +113,15 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 - Bundle JS produksi: 27,9 KB gzip.
 - Keputusan baru: D-014.
 - Langkah manual (opsional): hubungkan repo ke Vercel (Root Directory `apps/web`) untuk preview tampilan statis.
+
+### 2026-10-05 — W7 Web: akun, sesi & koneksi
+- Selesai: register (validasi langsung username, kebijakan password, Argon2id di Web Worker), login (integritas vault),
+  sesi tahan refresh terikat tab (AES-GCM non-extractable di IndexedDB, state terenkripsi di sessionStorage),
+  kunci 10 menit + peringatan 60 dtk, tab duplikat (BroadcastChannel), satu koneksi WebSocket (challenge Ed25519,
+  heartbeat, reconnect backoff, 4409/4410), AccountClock dari `remainingMs` server, layar Expired, logout.
+- Test: 39 unit web (pelacak aktivitas, pengelola sesi dengan storage palsu, koneksi WS dengan socket palsu) +
+  24 E2E dengan relay lokal sungguhan (Chromium 320 px & desktop), stabil 3× berturut-turut; juga lolos di WebKit.
+- Ditemukan & diperbaiki: tombol "Keluar" hanya pindah layar tanpa mengakhiri sesi (bug keamanan, ketahuan E2E);
+  test flaky karena jam runner vs jam halaman.
+- Keputusan baru: D-015.
+- Tertunda: daftar room & chat sungguhan (W8); Chat/Verify masih data contoh; hapus akun (W11).
