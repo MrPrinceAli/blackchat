@@ -190,8 +190,9 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 
 - [x] `ALLOWED_ORIGIN` produksi relay = `https://blackchat-id.vercel.app` (`pnpm configure-domains --web …`).
 - [x] D1 produksi `blackchat` dibuat (region APAC), `database_id` diisi, migrasi `0001_init.sql` diterapkan `--remote`.
-- [ ] Host relay di CSP `apps/web/vercel.json` (masih placeholder `RELAY_HOST`): setelah relay ter-deploy,
-      `pnpm configure-domains --relay https://blackchat-relay.<subdomain>.workers.dev`.
+- [x] Relay live di `https://blackchat-relay.fachrulanf.workers.dev` (deploy pertama lewat `deploy-relay.yml`,
+      `SALT_SECRET` dibuat otomatis). Host relay diisi ke CSP `apps/web/vercel.json`.
+- [ ] Web di Vercel: project `blackchat-id`, env `VITE_RELAY_URL=https://blackchat-relay.fachrulanf.workers.dev`.
 
 Domain sendiri (misal `blackchat.id`) tetap bisa ditambahkan nanti lewat Vercel → Domains, lalu jalankan ulang
 `pnpm configure-domains --web https://<domain>`.

@@ -27,18 +27,17 @@ export function parseOrigin(raw, name) {
 
 const CONNECT = /connect-src 'self' wss:\/\/[^\s;]+ https:\/\/[^\s;]+/;
 
-/** Ganti host relay di CSP vercel.json (placeholder RELAY_HOST maupun host sebelumnya). */
+/**
+ * Ganti host relay di CSP vercel.json (placeholder RELAY_HOST maupun host sebelumnya).
+ * Hanya nilai connect-src yang diganti di teks aslinya, supaya format file (Prettier) tetap utuh.
+ */
 export function updateVercelJson(text, relayHost) {
   const config = JSON.parse(text);
   const headers = config.headers?.[0]?.headers ?? [];
   const csp = headers.find((h) => h.key === 'Content-Security-Policy');
-  if (!csp || !CONNECT.test(csp.value))
+  if (!csp || !CONNECT.test(csp.value) || text.match(new RegExp(CONNECT, 'g'))?.length !== 1)
     throw new Error('vercel.json: connect-src relay tidak ditemukan');
-  csp.value = csp.value.replace(
-    CONNECT,
-    `connect-src 'self' wss://${relayHost} https://${relayHost}`,
-  );
-  return `${JSON.stringify(config, null, 2)}\n`;
+  return text.replace(CONNECT, `connect-src 'self' wss://${relayHost} https://${relayHost}`);
 }
 
 /** Ganti ALLOWED_ORIGIN di bagian [vars] tingkat atas (bukan [env.test.vars]). */

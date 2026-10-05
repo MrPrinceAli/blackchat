@@ -5,7 +5,7 @@ Relay (Cloudflare) dan web (Vercel) di-deploy terpisah. Langkah di bawah hanya p
 | Bagian | Alamat | Status konfigurasi |
 |---|---|---|
 | Web | `https://blackchat-id.vercel.app` | `ALLOWED_ORIGIN` relay sudah diisi |
-| Relay | `https://blackchat-relay.<subdomain-akun>.workers.dev` | D1 siap; host relay diisi setelah deploy pertama (langkah 3) |
+| Relay | `https://blackchat-relay.fachrulanf.workers.dev` | Live; host relay sudah di CSP web |
 
 ## 1. Relay (Cloudflare)
 
