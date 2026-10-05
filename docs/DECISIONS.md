@@ -118,3 +118,16 @@ Safety number tetap persis PRD §4.4 (tanpa label).
 - **Notifikasi pesan gambar** dikirim setelah semua chunk masuk (W10); di W5 hanya pesan tanpa chunk yang memicu `new`.
 - **Frame `expiring` tidak dikirim server.** Sisa umur akun dikirim di `ready` (`remainingMs`), dan client menghitung peringatan 24 jam/1 jam/5 menit sendiri (PRD §10.3, §13.3).
 **Risiko yang diterima (dicatat untuk SECURITY.md di W12):** karena InboxDO tidak tahu siapa lawan bicara (PRD §2.1 prinsip 3), anggota room mana pun bisa mengarahkan `touch`/`event` ke inbox yang ia sebut. Akibatnya terbatas pada: menaikkan penghitung belum dibuka, mengirim event palsu, atau menambah entri room berisi header sampah di daftar korban (maks 1000, dibatasi 30 kirim/menit). Isi pesan tetap aman. Client wajib mengabaikan event untuk `inboxRoomId` yang tidak dikenal dan melupakan entri yang headernya gagal dibuka (`openHeader`).
+
+## D-014 — Detail web fondasi (2026-10-05)
+**Konteks:** PRD §10–§11 menyisakan beberapa detail implementasi untuk SPA dan header keamanan.
+**Keputusan:**
+- **`vercel.json` menyimpan placeholder `RELAY_HOST`** sampai W12. PRD §11.1 menyebut placeholder diganti "saat build", tetapi Vercel membaca `vercel.json` sebelum build berjalan, jadi nilainya harus ditulis langsung di file. W12 mengganti placeholder dengan host relay produksi (langkah manual tercatat). `apps/web/security-headers.js` membaca `vercel.json` yang sama dan dipakai server preview Vite, sehingga smoke/E2E berjalan di bawah CSP yang sama dengan produksi. Untuk relay lokal `http://`, `upgrade-insecure-requests` dan HSTS dihilangkan.
+- **Tema:** gelap jika tidak ada preferensi, mengikuti `prefers-color-scheme`, dan bisa dipaksa di Settings (`localStorage` kunci `bc.theme`, satu-satunya data di sana).
+- **Font:** hanya subset Latin variabel dari Fontsource (Instrument Sans, Martian Mono; OFL, lisensi di `public/fonts/`). Aksara lain memakai font sistem.
+- **Efek lebur:** bubble digambar ulang ke canvas dengan `fillText` memakai gaya terhitung (bukan snapshot DOM), lalu dipecah per sel 4 px. Logika partikel ada di `lib/burn.ts` (fungsi murni, diuji).
+- **CSP & Svelte:** tidak ada atribut `style="..."` di template; gaya dinamis hanya lewat direktif `style:` (CSSOM, diizinkan CSP). Smoke test memeriksa event `securitypolicyviolation`.
+- **Overlay sensor** (`.concealed-overlay`) murni visual (`pointer-events: none`).
+- **Kode khusus dev** (halaman demo lebur) dijaga dengan `import.meta.env.DEV && …` di posisi pertama kondisi supaya minifier membuangnya dari bundle produksi.
+- **Layar statis W6** memakai data contoh (`lib/sample.ts`) yang diganti di W7/W8. Layar Expired belum bisa dicapai dari alur statis; diuji di W7.
+**Konsekuensi:** bundle JS produksi 27,9 KB gzip (batas PRD §10.7: 100 KB, tanpa libsodium).
