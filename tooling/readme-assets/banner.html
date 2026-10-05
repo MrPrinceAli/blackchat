@@ -1,0 +1,159 @@
+<!doctype html>
+<!-- Banner README & social preview. Dirender ke PNG oleh readme.shots.ts (?w=…&h=…). -->
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <title>blackchat banner</title>
+    <style>
+      @font-face {
+        font-family: 'Instrument Sans';
+        src: url('../../apps/web/public/fonts/instrument-sans-latin-wght.woff2') format('woff2');
+        font-weight: 400 700;
+      }
+      @font-face {
+        font-family: 'Martian Mono';
+        src: url('../../apps/web/public/fonts/martian-mono-latin-wght.woff2') format('woff2');
+        font-weight: 100 800;
+      }
+      html,
+      body {
+        margin: 0;
+        background: #000;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const W = Number(params.get('w') ?? 1280);
+      const H = Number(params.get('h') ?? 420);
+      const DPR = 2;
+
+      // PRNG deterministik supaya banner sama setiap kali dirender.
+      let seed = 7;
+      const rand = () => {
+        seed = (seed * 16807) % 2147483647;
+        return (seed - 1) / 2147483646;
+      };
+
+      async function draw() {
+        await document.fonts.load('700 100px "Instrument Sans"');
+        await document.fonts.load('400 20px "Martian Mono"');
+        await document.fonts.ready;
+
+        const c = document.getElementById('c');
+        c.width = W * DPR;
+        c.height = H * DPR;
+        c.style.width = `${W}px`;
+        c.style.height = `${H}px`;
+        const ctx = c.getContext('2d');
+        ctx.scale(DPR, DPR);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, W, H);
+
+        // Garis tipis ala UI aplikasi.
+        const pad = Math.round(W * 0.07);
+        ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(pad, Math.round(H * 0.16) + 0.5);
+        ctx.lineTo(W - pad, Math.round(H * 0.16) + 0.5);
+        ctx.moveTo(pad, Math.round(H * 0.84) + 0.5);
+        ctx.lineTo(W - pad, Math.round(H * 0.84) + 0.5);
+        ctx.stroke();
+
+        // Header kecil: mono, seperti header room di aplikasi.
+        const mono = Math.round(Math.min(H * 0.042, 17));
+        ctx.font = `400 ${mono}px "Martian Mono"`;
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText('@rara', pad, Math.round(H * 0.16) - mono * 0.9);
+        const timer = '7 dtk';
+        ctx.fillText(
+          timer,
+          W - pad - ctx.measureText(timer).width,
+          Math.round(H * 0.16) - mono * 0.9,
+        );
+
+        // Wordmark ke canvas terpisah, lalu sisi kanannya dileburkan menjadi partikel.
+        const size = Math.round(H * (H > 500 ? 0.26 : 0.3));
+        const word = document.createElement('canvas');
+        word.width = W * DPR;
+        word.height = H * DPR;
+        const wctx = word.getContext('2d');
+        wctx.scale(DPR, DPR);
+        wctx.font = `700 ${size}px "Instrument Sans"`;
+        wctx.fillStyle = '#fff';
+        wctx.textBaseline = 'alphabetic';
+        const baseline = Math.round(H * 0.5 + size * 0.28);
+        const wordWidth = wctx.measureText('blackchat').width;
+        wctx.fillText('blackchat', pad, baseline);
+
+        const img = wctx.getImageData(0, 0, word.width, word.height);
+        const cell = Math.round(5 * DPR);
+        const start = (pad + wctx.measureText('black').width + size * 0.02) * DPR;
+        const end = (pad + wordWidth) * DPR;
+        const out = ctx.createImageData(word.width, word.height);
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        // Bagian utuh.
+        for (let y = 0; y < word.height; y++) {
+          for (let x = 0; x < Math.min(start, word.width); x++) {
+            const i = (y * word.width + x) * 4;
+            out.data[i] = out.data[i + 1] = out.data[i + 2] = 255;
+            out.data[i + 3] = img.data[i + 3];
+          }
+        }
+        const tmp = document.createElement('canvas');
+        tmp.width = word.width;
+        tmp.height = word.height;
+        tmp.getContext('2d').putImageData(out, 0, 0);
+        ctx.drawImage(tmp, 0, 0);
+        // Bagian melebur: sel-sel naik dan memudar makin ke kanan.
+        for (let y = 0; y < word.height; y += cell) {
+          for (let x = Math.floor(start / cell) * cell; x < end + cell; x += cell) {
+            const i =
+              (Math.min(y + cell / 2, word.height - 1) * word.width +
+                Math.min(x + cell / 2, word.width - 1)) *
+              4;
+            const a = img.data[i + 3] / 255;
+            if (a < 0.4) continue;
+            const t = Math.max(0, (x - start) / (end - start));
+            if (rand() < t * 0.6) continue;
+            const lift = t * t * (H * 0.16) * DPR * (0.4 + rand() * 0.9);
+            const drift = (rand() - 0.3) * t * 30 * DPR;
+            const alpha = Math.max(0.12, 1 - t * (0.4 + rand() * 0.5));
+            const shade = 200 + Math.round(rand() * 55);
+            ctx.fillStyle = `rgba(${shade},${shade},${shade},${alpha})`;
+            ctx.fillRect(
+              x + drift,
+              y - lift,
+              cell - (t > 0.1 ? DPR : 0),
+              cell - (t > 0.1 ? DPR : 0),
+            );
+          }
+        }
+        ctx.restore();
+
+        // Tagline.
+        const tag = Math.round(H * 0.058);
+        ctx.font = `400 ${tag}px "Instrument Sans"`;
+        ctx.fillStyle = 'rgba(255,255,255,0.86)';
+        ctx.fillText('Pesan yang melebur setelah dibaca.', pad, baseline + tag * 2.1);
+
+        // Footer mono.
+        ctx.font = `400 ${mono}px "Martian Mono"`;
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        const foot = 'end-to-end encrypted · zero plaintext on server · akun hangus 72 jam';
+        ctx.fillText(foot, pad, Math.round(H * 0.84) + mono * 2);
+
+        document.body.dataset.ready = '1';
+      }
+      draw();
+    </script>
+  </body>
+</html>

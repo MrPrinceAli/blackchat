@@ -17,7 +17,8 @@
     "test:relay": "pnpm --filter @blackchat/relay test",
     "test:e2e": "playwright test",
     "check:inline": "node tooling/check-inline.js apps/web/dist",
-    "configure-domains": "node tooling/configure-domains.js"
+    "configure-domains": "node tooling/configure-domains.js",
+    "readme:assets": "playwright test -c tooling/readme-assets/playwright.config.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

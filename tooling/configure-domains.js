@@ -1,5 +1,6 @@
 // Atur domain produksi dengan satu perintah (D-020):
-//   node tooling/configure-domains.js --web https://leburchat.vercel.app --relay https://blackchat-relay.akun.workers.dev
+//   node tooling/configure-domains.js --web https://blackchat-id.vercel.app --relay https://blackchat-relay.akun.workers.dev
+// Salah satu boleh diisi lebih dulu (misal --web sebelum URL relay diketahui).
 // - apps/web/vercel.json: host relay di CSP connect-src (wss:// dan https://).
 // - apps/relay/wrangler.toml: ALLOWED_ORIGIN produksi (CORS & Origin WebSocket).
 // Lalu isi VITE_RELAY_URL di Vercel dengan URL relay yang sama. Tambahkan --dry-run untuk melihat perubahan saja.
@@ -53,28 +54,29 @@ function main(argv) {
     if (argv[i] === '--dry-run') args.set('dry', true);
     else if (argv[i]?.startsWith('--')) args.set(argv[i].slice(2), argv[++i]);
   }
-  if (!args.get('web') || !args.get('relay')) {
+  if (!args.get('web') && !args.get('relay')) {
     console.error(
-      'pemakaian: node tooling/configure-domains.js --web https://<web> --relay https://<relay> [--dry-run]',
+      'pemakaian: node tooling/configure-domains.js [--web https://<web>] [--relay https://<relay>] [--dry-run]',
     );
     process.exit(2);
   }
-  const web = parseOrigin(args.get('web'), '--web');
-  const relay = parseOrigin(args.get('relay'), '--relay');
   const vercelPath = `${root}apps/web/vercel.json`;
   const wranglerPath = `${root}apps/relay/wrangler.toml`;
-  const vercel = updateVercelJson(readFileSync(vercelPath, 'utf8'), relay.host);
-  const wrangler = updateWranglerToml(readFileSync(wranglerPath, 'utf8'), web.origin);
-  if (args.get('dry')) {
-    console.log(vercel);
-    console.log(wrangler);
-    return;
+  if (args.get('web')) {
+    const web = parseOrigin(args.get('web'), '--web');
+    const wrangler = updateWranglerToml(readFileSync(wranglerPath, 'utf8'), web.origin);
+    if (args.get('dry')) console.log(wrangler);
+    else writeFileSync(wranglerPath, wrangler);
+    console.log(`wrangler.toml: ALLOWED_ORIGIN → ${web.origin}`);
   }
-  writeFileSync(vercelPath, vercel);
-  writeFileSync(wranglerPath, wrangler);
-  console.log(`vercel.json  : connect-src → wss://${relay.host} https://${relay.host}`);
-  console.log(`wrangler.toml: ALLOWED_ORIGIN → ${web.origin}`);
-  console.log(`Isi di Vercel (Production): VITE_RELAY_URL=${relay.origin}`);
+  if (args.get('relay')) {
+    const relay = parseOrigin(args.get('relay'), '--relay');
+    const vercel = updateVercelJson(readFileSync(vercelPath, 'utf8'), relay.host);
+    if (args.get('dry')) console.log(vercel);
+    else writeFileSync(vercelPath, vercel);
+    console.log(`vercel.json  : connect-src → wss://${relay.host} https://${relay.host}`);
+    console.log(`Isi di Vercel (Production) & GitHub Variables: VITE_RELAY_URL=${relay.origin}`);
+  }
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1])

@@ -1,0 +1,16 @@
+name: Usulan fitur
+description: Ide untuk blackchat
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Usulan
+      description: Apa yang ingin ditambahkan atau diubah, dan kenapa?
+    validations:
+      required: true
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Dampak privasi
+      description: Apakah usulan ini membuat server melihat data atau metadata baru? (lihat Aturan Emas di CLAUDE.md)

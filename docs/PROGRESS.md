@@ -173,25 +173,27 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 - Keputusan baru: D-020.
 - **Belum dilakukan: deploy.** Relay dan web baru live setelah langkah manual di bawah (akun & secret milik pemilik).
 
-## Opsi domain
+### 2026-10-05 — Tampilan repo & domain
+- Domain web dipilih: `blackchat-id.vercel.app`; `ALLOWED_ORIGIN` relay diisi. `configure-domains` kini menerima
+  `--web` dan `--relay` terpisah.
+- README baru: banner, badge, galeri screenshot (mobile, desktop, tema terang), diagram mermaid, ringkasan bahasa
+  Inggris. Panduan deploy dipindah ke `docs/DEPLOY.md`. `LICENSE` (MIT), `CONTRIBUTING.md`, template issue & PR.
+- Gambar README dibuat oleh `pnpm readme:assets` (`tooling/readme-assets/`, konfigurasi Playwright terpisah; tidak
+  ikut `pnpm test:e2e`/CI).
+- Bug ditemukan lewat screenshot: garis hitung mundur di pesan sendiri menyusut ke lebar angka. Diperbaiki
+  (`SecretBubble.svelte`) dan dikunci E2E (`chat.spec.ts`, terbukti gagal tanpa perbaikan).
 
-`blackchat.vercel.app`, `lebur.vercel.app`, dan `blackchat-app.vercel.app` sudah dipakai orang lain. Nama di bawah
-belum punya deployment saat dicek (2026-10-05). Kepastian baru ada saat membuat project di Vercel (nama project = subdomain).
+## Domain
 
-| Nama project Vercel | Alamat web | Kesan |
-|---|---|---|
-| `leburchat` | https://leburchat.vercel.app | Paling dekat dengan fitur utama (pesan melebur) |
-| `pesanlebur` | https://pesanlebur.vercel.app | Deskriptif, mudah dipahami |
-| `sekalibaca` | https://sekalibaca.vercel.app | Menekankan "sekali lihat" |
-| `bisikhitam` | https://bisikhitam.vercel.app | Sesuai tema hitam putih & rahasia |
-| `hanguschat` | https://hanguschat.vercel.app | Menekankan akun yang hangus 3 hari |
-| `arsiphitam` | https://arsiphitam.vercel.app | Sesuai arah visual "arsip rahasia digital" (PRD §10.1) |
-| `blackchatid` | https://blackchatid.vercel.app | Tetap memakai nama BlackChat |
-| `blkchat` | https://blkchat.vercel.app | Singkat |
+**Dipilih: `https://blackchat-id.vercel.app`** (nama project Vercel `blackchat-id`; 2026-10-05). `blackchat.vercel.app`,
+`lebur.vercel.app`, dan `blackchat-app.vercel.app` sudah dipakai orang lain.
 
-Domain sendiri (misal `blackchat.id`) juga bisa dipakai lewat Vercel → Domains. Relay bisa tetap di
-`*.workers.dev` atau memakai subdomain sendiri (misal `relay.blackchat.id`). Setelah memilih:
-`pnpm configure-domains --web https://<web> --relay https://<relay>`.
+- [x] `ALLOWED_ORIGIN` produksi relay = `https://blackchat-id.vercel.app` (`pnpm configure-domains --web …`).
+- [ ] Host relay di CSP `apps/web/vercel.json` (masih placeholder `RELAY_HOST`): setelah relay ter-deploy,
+      `pnpm configure-domains --relay https://blackchat-relay.<subdomain>.workers.dev`.
+
+Domain sendiri (misal `blackchat.id`) tetap bisa ditambahkan nanti lewat Vercel → Domains, lalu jalankan ulang
+`pnpm configure-domains --web https://<domain>`.
 
 ## Checklist manual pemilik proyek (PRD §16.1)
 

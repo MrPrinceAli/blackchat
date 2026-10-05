@@ -35,7 +35,7 @@ database_name = "blackchat"
 database_id = "ISI_SETELAH_wrangler_d1_create"
 
 [vars]
-ALLOWED_ORIGIN = "https://blackchat.vercel.app"
+ALLOWED_ORIGIN = "https://blackchat-id.vercel.app"
 
 # Lingkungan dev lokal & test (D-005, D-006). Binding tidak diwariskan antar-env di wrangler,
 # jadi diulang di sini.

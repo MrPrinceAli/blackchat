@@ -313,6 +313,8 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    /* Selebar bubble juga di sisi kanan (pesan sendiri), di mana tumpukan rata kanan. */
+    justify-self: stretch;
   }
   .line {
     flex: 1;
