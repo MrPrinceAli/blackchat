@@ -32,7 +32,7 @@ new_sqlite_classes = ["InboxDO", "RoomDO", "LimiterDO"]
 [[d1_databases]]
 binding = "DB"
 database_name = "blackchat"
-database_id = "ISI_SETELAH_wrangler_d1_create"
+database_id = "8e1d9a79-be50-4200-9d07-a18c4b490139"
 
 [vars]
 ALLOWED_ORIGIN = "https://blackchat-id.vercel.app"

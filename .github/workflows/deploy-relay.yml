@@ -67,4 +67,26 @@ jobs:
       - name: Deploy Worker
         if: steps.config.outputs.ready == 'true'
         working-directory: apps/relay
-        run: pnpm exec wrangler deploy --env=""
+        # SALT_SECRET dibuat sekali di runner saat Worker belum punya secret itu (deploy pertama), langsung
+        # dikirim ke Cloudflare, tidak pernah dicetak atau disimpan di GitHub. Deploy berikutnya tidak menyentuhnya
+        # (secret tidak dihapus oleh deploy). Jika daftar secret gagal dibaca padahal Worker sudah ada, job gagal
+        # supaya secret lama tidak tertimpa.
+        run: |
+          set -euo pipefail
+          if secrets=$(pnpm exec wrangler secret list --env="" 2>/dev/null); then
+            if grep -q 'SALT_SECRET' <<<"$secrets"; then need_salt=false; else need_salt=true; fi
+          elif pnpm exec wrangler deployments list --env="" >/dev/null 2>&1; then
+            echo "::error::Daftar secret Worker tidak bisa dibaca; deploy dihentikan agar SALT_SECRET tidak tertimpa."
+            exit 1
+          else
+            need_salt=true
+          fi
+          if [ "$need_salt" = true ]; then
+            dir=$(mktemp -d)
+            trap 'rm -rf "$dir"' EXIT
+            ( umask 077; printf '{"SALT_SECRET":"%s"}' "$(openssl rand -hex 32)" > "$dir/salt.json" )
+            echo "::notice::SALT_SECRET belum ada; dibuat acak dan dikirim bersama deploy."
+            pnpm exec wrangler deploy --env="" --secrets-file "$dir/salt.json"
+          else
+            pnpm exec wrangler deploy --env=""
+          fi
