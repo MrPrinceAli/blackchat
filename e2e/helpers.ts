@@ -37,9 +37,22 @@ export async function watch(page: Page): Promise<() => Promise<void>> {
   const problems: string[] = [];
   const allowed = new Set([WEB, RELAY, RELAY.replace('http', 'ws')]);
   page.on('console', (message) => {
-    // Kegagalan koneksi WebSocket saat relay sengaja menolak (akun hangus) bukan bug aplikasi.
-    if (message.type() === 'error' && !message.text().includes('WebSocket connection'))
-      problems.push(`console: ${message.text()}`);
+    const text = message.text();
+    // - Kegagalan koneksi WebSocket saat relay sengaja menolak (akun hangus) bukan bug aplikasi.
+    // - "Failed to load resource" dicatat browser untuk setiap respons >= 400; dinilai lewat listener response.
+    const ignored =
+      text.includes('WebSocket connection') || text.startsWith('Failed to load resource');
+    if (message.type() === 'error' && !ignored) problems.push(`console: ${text}`);
+  });
+  page.on('response', (response) => {
+    const url = new URL(response.url());
+    // 404 lookup = username tersedia / tidak ditemukan; itu jawaban API yang sah.
+    const expected =
+      response.status() === 404 &&
+      url.origin === RELAY &&
+      url.pathname.startsWith('/v1/account/lookup/');
+    if (response.status() >= 400 && !expected)
+      problems.push(`respons ${response.status()}: ${url.pathname}`);
   });
   page.on('pageerror', (error) => problems.push(`pageerror: ${error.message}`));
   page.on('request', (request) => {
