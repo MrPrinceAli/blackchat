@@ -1,8 +1,8 @@
 {
   "name": "blackchat",
   "short_name": "blackchat",
-  "description": "Chat rahasia end-to-end. Pesan melebur setelah dibaca, akun hangus dalam 3 hari.",
-  "lang": "id",
+  "description": "End-to-end encrypted secret chat. Messages burn after reading, accounts expire in 3 days.",
+  "lang": "en",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

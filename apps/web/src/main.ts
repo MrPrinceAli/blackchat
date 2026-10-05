@@ -1,10 +1,12 @@
 import { mount } from 'svelte';
 import App from './App.svelte';
+import { initLang } from './lib/i18n.svelte';
 import { applyTheme, readTheme } from './lib/theme';
 import './styles/tokens.css';
 import './styles/base.css';
 
 applyTheme(readTheme());
+initLang();
 
 const target = document.getElementById('app');
 if (!target) throw new Error('#app tidak ditemukan');

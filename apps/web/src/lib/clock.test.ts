@@ -1,10 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { accountWarning, formatAccountClock } from './clock';
+import { setLang } from './i18n.svelte';
 
 const S = 1000;
 const M = 60 * S;
 const H = 60 * M;
 const D = 24 * H;
+
+// Ekspektasi di bawah memakai format Indonesia; default aplikasi Inggris (D-024).
+beforeAll(() => setLang('id', false));
+afterAll(() => setLang('en', false));
 
 describe('formatAccountClock (PRD §10.3)', () => {
   it('format hari-jam-menit', () => {
@@ -39,5 +44,17 @@ describe('accountWarning (PRD §10.3)', () => {
 
   it('teks lengkap sesuai PRD', () => {
     expect(accountWarning(1 * H)).toBe('Akun hangus dalam 1 jam. Semua pesan ikut terhapus.');
+  });
+});
+
+describe('format bahasa Inggris (D-024)', () => {
+  beforeAll(() => setLang('en', false));
+  afterAll(() => setLang('id', false));
+
+  it('satuan d/h/m/s dan peringatan berbahasa Inggris', () => {
+    expect(formatAccountClock(2 * D + 14 * H + 3 * M + 59 * S)).toBe('2d 14h 03m');
+    expect(formatAccountClock(23 * H + 59 * M)).toBe('23h 59m');
+    expect(formatAccountClock(59 * M + 12 * S)).toBe('59m 12s');
+    expect(accountWarning(1 * H)).toBe('Account expires in 1 hour. All messages go with it.');
   });
 });

@@ -1,6 +1,6 @@
 <script lang="ts">
   import AuthHeader from '../components/AuthHeader.svelte';
-  import LogoTile from '../components/LogoTile.svelte';
+  import Wordmark from '../components/Wordmark.svelte';
   import { AccountError, login } from '../lib/account';
   import { app } from '../lib/app-state.svelte';
   import { navigate } from '../lib/router.svelte';
@@ -36,7 +36,7 @@
   <AuthHeader onBack={() => navigate('welcome')} disabled={busy} />
   <div class="auth-body">
     <div class="auth-intro">
-      <LogoTile />
+      <span class="auth-mark"><Wordmark size={44} /></span>
       <h1>{strings.login.title}</h1>
       <p class="subtitle">{strings.login.subtitle}</p>
     </div>

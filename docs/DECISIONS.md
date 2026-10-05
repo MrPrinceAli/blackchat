@@ -210,3 +210,21 @@ Safety number tetap persis PRD §4.4 (tanpa label).
 **Konteks:** PRD §5.4 menghitung `scroll` sebagai aktivitas, tetapi juga menyatakan bahwa membaca pesan masuk dan event server tidak dihitung. Event `scroll` juga muncul tanpa interaksi: scroll otomatis ke pesan baru, atau browser menggeser posisi scroll saat tinggi halaman berubah. Di 320×568, hal ini membatalkan peringatan kunci tanpa ada pengguna (ditemukan saat UI v2, D-021).
 **Keputusan:** `SESSION.ACTIVITY_EVENTS` = `pointerdown`, `keydown`, `wheel`, `touchstart`. Scroll oleh pengguna selalu diawali salah satu event itu (roda/trackpad, sentuhan, keyboard, atau drag scrollbar). Diuji E2E: scroll oleh program saat peringatan tampil tidak membatalkan peringatan.
 
+## D-023 — Logo wordmark, layout desktop dua panel, lampu indikator merah (2026-10-05)
+**Konteks:** Pemilik proyek memilih logo bergaya wordmark ("blackchat" yang melebur), meminta menu utama dirancang untuk desktop (sebelumnya terasa seperti web app mobile), dan meminta lampu indikator merah di Welcome.
+**Keputusan:**
+- **Logo = wordmark**: "blackch" tegas, hanya dua huruf terakhir ("at") melebur jadi piksel. Sel piksel dirasterisasi sekali dari Instrument Sans Bold (`tooling/readme-assets/wordmark.html`, deterministik) ke `apps/web/src/lib/wordmark.ts`; komponen `Wordmark.svelte` menggambar teks + sel dalam satu SVG (`currentColor`). Menggantikan logo gelembung dari D-021.
+- **Favicon & ikon aplikasi** = huruf "b" dengan piksel lepas (wordmark tidak terbaca di 16–32 px): PNG 32/64, apple-touch 180, manifest 192/512/maskable. Banner README & `og.png` ikut melebur di "at" saja.
+- **Layar ≥ 960 px**: shell dua panel. Sidebar = Home (`<nav>`), panel kanan = Chat/Verifikasi/Pengaturan atau panel kosong (`<main>`, wordmark + pintasan keyboard). Room aktif ditandai. Di bawah 960 px tetap satu layar per waktu. Nama di daftar ditulis tanpa "@" di teks (ditambahkan lewat CSS) dengan `aria-label` "@nama", sehingga teks persis "@nama" hanya ada di header chat.
+- **Satu warna di luar monokrom**: lampu indikator merah (`--signal`) di samping "e2ee · tanpa log" di Welcome, berdenyut pelan. Tidak dipakai untuk status atau komponen lain.
+- **Footer Welcome**: daftar primitif kripto (x25519, ed25519, xchacha20-poly1305, argon2id) dengan ikon dan perannya.
+
+## D-024 — UI dua bahasa: Inggris (default) dan Indonesia (2026-10-05)
+**Konteks:** PRD/CLAUDE.md menetapkan teks UI Bahasa Indonesia. Pemilik proyek meminta Inggris sebagai default, dengan toggle bahasa.
+**Keputusan:**
+- Kamus `lib/strings.en.ts` (default) dan `lib/strings.id.ts` dengan bentuk yang sama (diperiksa TypeScript). `lib/strings.ts` adalah proxy reaktif ke bahasa aktif (`lib/i18n.svelte.ts`), sehingga UI berganti tanpa memuat ulang dan semua kode tetap memakai `strings.x.y`. `<html lang>` ikut diperbarui.
+- **Preferensi bahasa disimpan di localStorage `bc.lang`** (hanya `id`; Inggris = tidak ada entri), lewat `theme.ts`: modul yang sama dengan tema, satu-satunya modul yang boleh memakai localStorage (aturan lint tidak berubah). Bukan data sensitif. Aturan Emas 5 diperbarui.
+- Toggle `EN | ID` (dua tombol `aria-pressed`) di pojok kanan atas Welcome, header Masuk/Daftar, header sidebar/Home, dan seksi bahasa di Pengaturan.
+- Format jam umur akun mengikuti bahasa: ID `2h 14j 03m` / EN `2d 14h 03m`.
+- **E2E**: suite memakai bahasa Indonesia lewat `storageState` di `playwright.config.ts` (berlaku juga untuk `browser.newContext`). Test baru di `smoke.spec.ts` memastikan default Inggris, toggle langsung berlaku, dan pilihan bertahan setelah reload.
+

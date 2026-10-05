@@ -194,6 +194,12 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
   kunci 10 menit (D-022). Dikunci E2E dan dibuktikan dengan uji mutasi.
 - JS utama 57 KB gzip, CSS 6 KB gzip (batas PRD §10.7: 100 KB).
 
+### 2026-10-05 — Logo wordmark, desktop dua panel, dua bahasa (D-023, D-024)
+- Logo wordmark ("at" melebur jadi piksel) di semua layar; favicon & ikon "b"; banner/og ikut.
+- Layar ≥ 960 px: sidebar percakapan + panel chat/verifikasi/pengaturan; panel kosong dengan pintasan keyboard.
+- Inggris jadi bahasa default, toggle EN | ID di Welcome, Masuk/Daftar, sidebar, dan Pengaturan.
+- Welcome: lampu indikator merah, daftar primitif kripto dengan ikon.
+
 ## Domain
 
 **Dipilih: `https://blackchat-id.vercel.app`** (nama project Vercel `blackchat-id`; 2026-10-05). `blackchat.vercel.app`,

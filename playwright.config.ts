@@ -15,6 +15,16 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${WEB_PORT}`,
     trace: 'retain-on-failure',
+    // Suite E2E memakai teks Indonesia (bahasa default aplikasi Inggris, D-024; diuji di smoke.spec.ts).
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: `http://localhost:${WEB_PORT}`,
+          localStorage: [{ name: 'bc.lang', value: 'id' }],
+        },
+      ],
+    },
   },
   projects: [
     {

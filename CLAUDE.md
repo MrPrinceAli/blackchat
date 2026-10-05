@@ -20,7 +20,7 @@ Dokumen acuan (urutan prioritas jika bertentangan):
    Semua label domain separation ada di packages/protocol/src/constants.ts.
 4. Dilarang `console.*` (relay & web produksi), `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`,
    `eval`, `new Function`, `{@html}`.
-5. Storage browser yang diizinkan HANYA: tema di localStorage; `bc.tab`, `bc.sess`, `bc.view` di sessionStorage;
+5. Storage browser yang diizinkan HANYA: tema & bahasa (`bc.theme`, `bc.lang`, D-024) di localStorage; `bc.tab`, `bc.sess`, `bc.view` di sessionStorage;
    sessionKey non-extractable di IndexedDB `sessions`. Isi pesan/gambar tidak pernah menyentuh storage.
 6. Semua `Uint8Array` rahasia di-`memzero` setelah dipakai. Semua perbandingan rahasia constant-time.
 7. Semua input jaringan divalidasi di packages/protocol/src/validate.ts sebelum diproses. Tidak valid = tolak.
@@ -43,7 +43,8 @@ pnpm dev (vite + wrangler dev) | pnpm build | pnpm lint | pnpm typecheck | pnpm 
 pnpm test:relay | pnpm test:e2e | pnpm check:inline (dist/index.html tanpa inline script/style)
 
 ## Konvensi
-- Teks UI Bahasa Indonesia, sentence case, semua string di apps/web/src/lib/strings.ts.
+- Teks UI dua bahasa (D-024): Inggris (default, `lib/strings.en.ts`) dan Indonesia (`lib/strings.id.ts`), sentence case.
+  Komponen membaca lewat `lib/strings.ts`; setiap teks baru wajib ada di kedua kamus.
 - Setiap fungsi crypto, validator, dan operasi relay wajib punya test. Test negatif (input cacat, proof salah,
   replay, akun hangus) sama pentingnya dengan test positif.
 - Waktu di relay hanya lewat apps/relay/src/clock.ts (bisa dimajukan di test, D-006). Server mengirim

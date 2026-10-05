@@ -1,0 +1,94 @@
+<!doctype html>
+<!--
+  Generator wordmark: "blackch" tegas + "at" melebur jadi piksel (gaya efek lebur).
+  Dirender oleh readme.shots.ts; hasilnya (koordinat sel, satuan font-size 100) ditulis ke
+  apps/web/src/lib/wordmark.ts. Deterministik (PRNG berbenih).
+-->
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <title>blackchat wordmark</title>
+    <style>
+      @font-face {
+        font-family: 'Instrument Sans';
+        src: url('../../apps/web/public/fonts/instrument-sans-latin-wght.woff2') format('woff2');
+        font-weight: 400 700;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      const SCALE = 4; // sampling di 400 px, disimpan dalam satuan font-size 100
+      const SIZE = 100 * SCALE;
+      const CELL = 4.5 * SCALE; // sel ≈ 0.045 em
+      let seed = 11;
+      const rand = () => {
+        seed = (seed * 16807) % 2147483647;
+        return (seed - 1) / 2147483646;
+      };
+      const r2 = (n) => Math.round(n * 100) / 100;
+
+      async function build() {
+        await document.fonts.load(`700 ${SIZE}px "Instrument Sans"`);
+        const c = document.createElement('canvas');
+        const ctx = c.getContext('2d');
+        const font = `700 ${SIZE}px "Instrument Sans"`;
+        ctx.font = font;
+        const crisp = 'blackch';
+        const full = 'blackchat';
+        const start = ctx.measureText(crisp).width;
+        const end = ctx.measureText(full).width;
+        const metrics = ctx.measureText(full);
+        const ascent = Math.ceil(metrics.actualBoundingBoxAscent);
+        const descent = Math.ceil(metrics.actualBoundingBoxDescent);
+        const pad = SIZE * 0.5;
+        c.width = Math.ceil(end + pad);
+        c.height = Math.ceil(ascent + descent + pad);
+        const baseline = ascent + pad / 2;
+        ctx.font = font;
+        ctx.fillStyle = '#fff';
+        ctx.fillText(full, 0, baseline);
+        const img = ctx.getImageData(0, 0, c.width, c.height);
+        const alphaAt = (x, y) => {
+          const xi = Math.min(c.width - 1, Math.max(0, Math.round(x)));
+          const yi = Math.min(c.height - 1, Math.max(0, Math.round(y)));
+          return img.data[(yi * c.width + xi) * 4 + 3] / 255;
+        };
+
+        const cells = [];
+        for (let y = 0; y < c.height; y += CELL) {
+          for (let x = Math.floor(start / CELL) * CELL; x < end + CELL; x += CELL) {
+            if (x + CELL / 2 < start) continue;
+            const a = alphaAt(x + CELL / 2, y + CELL / 2);
+            if (a < 0.45) continue;
+            const t = Math.max(0, Math.min(1, (x - start) / (end - start)));
+            // Makin ke kanan makin banyak piksel yang hilang, naik, dan memudar.
+            if (rand() < t * t * 0.55) continue;
+            const lift = t * t * t * SIZE * 0.26 * (0.3 + rand() * 0.9);
+            const drift = (rand() - 0.25) * t * t * SIZE * 0.14;
+            const alpha = Math.max(0.22, 1 - t * t * (0.35 + rand() * 0.5));
+            const gap = t > 0.18 ? SCALE * 0.8 : 0;
+            cells.push([
+              r2((x + drift) / SCALE),
+              r2((y - lift - baseline) / SCALE),
+              r2((CELL - gap) / SCALE),
+              r2(alpha),
+            ]);
+          }
+        }
+        const minY = Math.min(...cells.map((p) => p[1]), -ascent / SCALE);
+        const maxX = Math.max(...cells.map((p) => p[0] + p[2]), end / SCALE);
+        window.__wordmark = {
+          crisp,
+          advance: r2(start / SCALE),
+          width: r2(maxX),
+          top: r2(minY - 2),
+          bottom: r2(descent / SCALE + 2),
+          cells,
+        };
+        document.body.dataset.ready = '1';
+      }
+      build();
+    </script>
+  </body>
+</html>

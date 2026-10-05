@@ -421,8 +421,8 @@ h1 {
   justify-items: start;
   gap: var(--space-3);
 }
-.auth-intro h1 {
-  margin-top: var(--space-3);
+.auth-mark {
+  margin-bottom: var(--space-4);
 }
 .auth-intro .subtitle {
   color: var(--muted);

@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '../components/Icon.svelte';
+  import LangToggle from '../components/LangToggle.svelte';
   import { AccountError, changePassword, deleteAccount, end } from '../lib/account';
   import { app } from '../lib/app-state.svelte';
   import { purgeAllRooms } from '../lib/chat.svelte';
@@ -8,11 +9,11 @@
   import { readTheme, saveTheme, type ThemePreference } from '../lib/theme';
 
   let theme = $state<ThemePreference>(readTheme());
-  const options: { value: ThemePreference; label: string }[] = [
+  const options: { value: ThemePreference; label: string }[] = $derived([
     { value: 'system', label: strings.settings.themeSystem },
     { value: 'dark', label: strings.settings.themeDark },
     { value: 'light', label: strings.settings.themeLight },
-  ];
+  ]);
   $effect(() => saveTheme(theme));
 
   // Ganti password (PRD §4.3).
@@ -95,6 +96,11 @@
         </label>
       {/each}
     </fieldset>
+  </section>
+
+  <section class="section">
+    <h2 class="eyebrow">{strings.settings.sectionLanguage}</h2>
+    <div><LangToggle /></div>
   </section>
 
   <section class="section">
