@@ -1,4 +1,4 @@
-import { ERRORS } from '@blackchat/protocol';
+import { ERRORS, vUserId } from '@blackchat/protocol';
 import {
   deleteAccount,
   deleteExpiredAccounts,
@@ -11,12 +11,14 @@ import {
 } from './account.js';
 import type { Env } from './env.js';
 import { checkOrigin, errorResponse, HttpError, json, preflight } from './http.js';
+import { USER_HEADER } from './inbox.js';
 
 export { InboxDO } from './inbox.js';
 export { LimiterDO } from './limiter.js';
 export { RoomDO } from './room.js';
 
 const LOOKUP_PREFIX = '/v1/account/lookup/';
+const WS_PREFIX = '/v1/ws/';
 
 async function route(request: Request, env: Env, url: URL): Promise<Response> {
   const path = url.pathname;
@@ -47,7 +49,22 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
   if (method === 'DELETE' && path === '/v1/account')
     return json(request, env, await deleteAccount(request, env));
 
+  if (method === 'GET' && path.startsWith(WS_PREFIX))
+    return connectInbox(request, env, path.slice(WS_PREFIX.length));
+
   throw new HttpError(ERRORS.NOT_FOUND);
+}
+
+/** WebSocket ke InboxDO milik akun (PRD §6.1). Autentikasi dilakukan InboxDO lewat challenge Ed25519. */
+async function connectInbox(request: Request, env: Env, rawUserId: string): Promise<Response> {
+  if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket')
+    throw new HttpError(ERRORS.INVALID);
+  const checked = vUserId(rawUserId);
+  if (!checked.ok) throw new HttpError(ERRORS.INVALID);
+  const headers = new Headers(request.headers);
+  headers.set(USER_HEADER, checked.value);
+  const stub = env.INBOX.get(env.INBOX.idFromName(`inbox:${checked.value}`));
+  return stub.fetch(new Request(request.url, { method: 'GET', headers }));
 }
 
 export default {
