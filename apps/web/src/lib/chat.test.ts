@@ -7,6 +7,8 @@ vi.mock('./account', () => ({
   onSessionEnd: () => undefined,
   onSessionReady: () => undefined,
   rememberView: () => undefined,
+  contacts: () => [],
+  saveContacts: async () => undefined,
 }));
 
 const { queueFront, sortedRooms } = await import('./chat.svelte');

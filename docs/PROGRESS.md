@@ -14,8 +14,8 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 | W7 | Web: akun, sesi & koneksi | Selesai, merged | #13 |
 | W8 | Chat teks end-to-end | Selesai, merged | #14 |
 | W9 | Batalkan pesan & kesepakatan timer | Selesai, merged | #15 |
-| W10 | Gambar | Selesai | branch `w10-gambar` |
-| W11 | Kontak, verifikasi, blokir & settings | Belum mulai | — |
+| W10 | Gambar | Selesai, merged | #16 |
+| W11 | Kontak, verifikasi, blokir & settings | Selesai | branch `w11-kontak` |
 | W12 | Rilis: deploy, E2E penuh, dokumen | Belum mulai | — |
 
 ---
@@ -152,3 +152,15 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
   (EXIF/GPS hilang, diuji mutasi), E2E 48 (3 baru: kirim/tampil/lebur gambar, portrait tinggi di 320×568, > 15 MB).
 - Ditemukan & diperbaiki: tinggi tampilan gambar dibulatkan ke atas sehingga melewati batas 60% layar.
 - Keputusan baru: D-018.
+
+### 2026-10-05 — W11 Kontak, verifikasi, blokir & settings
+- Selesai: blob kontak terenkripsi (dekripsi saat sesi mulai, update bertanda tangan berurutan), peringatan kunci
+  berubah, safety number + QR + status terverifikasi permanen, blokir (purge + forget + status di blob kontak,
+  room dari akun terblokir disaring otomatis), ganti password (bukti password lama lokal, kontak dienkripsi ulang),
+  hapus akun (purge semua room dengan progres → DELETE).
+- Test: relay 97 (+ blob kontak harus kelipatan 4 KB), web 55 unit (+ room akun terblokir disaring) + 2 browser,
+  E2E 58 (5 baru: safety number sama & verifikasi tersimpan, blokir, ganti password, hapus akun, username didaftarkan
+  ulang → peringatan kunci berbeda).
+- Ditemukan & diperbaiki: setelah room lama dilupakan karena lawan berganti kunci, pengguna tidak langsung ditawari
+  percakapan baru.
+- Keputusan baru: D-019.

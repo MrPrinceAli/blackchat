@@ -30,7 +30,11 @@
     // Percakapan yang sudah ada langsung dibuka.
     const existing = chat.rooms.find((r) => r.peer.peerUsername === username);
     if (existing) {
-      void open(existing.inboxRoomId);
+      void open(existing.inboxRoomId).then(() => {
+        // Room lama dilupakan karena lawan sudah tidak ada / berganti kunci: tawarkan percakapan baru.
+        if (!chat.open && !chat.rooms.some((r) => r.inboxRoomId === existing.inboxRoomId))
+          picking = username;
+      });
       return;
     }
     picking = username;

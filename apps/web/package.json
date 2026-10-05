@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@blackchat/crypto": "workspace:*",
-    "@blackchat/protocol": "workspace:*"
+    "@blackchat/protocol": "workspace:*",
+    "qrcode-generator": "2.0.4"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "7.3.1",

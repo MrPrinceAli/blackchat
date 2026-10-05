@@ -60,6 +60,7 @@ Semua versi dipin persis (`.npmrc` `save-exact=true`). Dependensi baru wajib dit
 | `libsodium-wrappers-sumo` | packages/crypto | Semua primitif kripto client. Varian sumo dibutuhkan untuk Argon2id (PRD §2.3). Membawa tipe TypeScript sendiri |
 | `@noble/hashes` | apps/relay | BLAKE2b di relay (D-007): WebCrypto tidak punya BLAKE2b, libsodium tidak bisa dimuat di Workers. Diaudit, pure JS |
 | `svelte` | apps/web | Framework UI, output statis tanpa inline script (CSP ketat) |
+| `qrcode-generator` | apps/web | QR safety number (PRD §4.4). MIT, tanpa dependensi; modul QR digambar sendiri ke canvas (tanpa HTML/SVG string) |
 
 ### Pengembangan
 

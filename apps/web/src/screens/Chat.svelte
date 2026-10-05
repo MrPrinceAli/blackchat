@@ -7,6 +7,7 @@
   import { app } from '../lib/app-state.svelte';
   import {
     answerTtl,
+    blockPeer,
     chat,
     closeRoom,
     markSeen,
@@ -24,6 +25,7 @@
   import { strings } from '../lib/strings';
 
   let headerMenu = $state(false);
+  let confirmBlock = $state(false);
   let menu = $state<{ x: number; y: number; msgId: string } | null>(null);
   let proposing = $state(false);
   let proposal = $state<Ttl>(3);
@@ -106,8 +108,9 @@
       >
       <button
         class="icon"
+        class:verified={room.verified}
         type="button"
-        aria-label={strings.chat.verify}
+        aria-label={room.verified ? strings.chat.verified : strings.chat.verify}
         onclick={() => navigate('verify')}>✓</button
       >
       <button
@@ -120,10 +123,27 @@
     </header>
     {#if headerMenu}
       <div class="header-menu">
-        <!-- Blokir diaktifkan di W11. -->
-        <button class="button" type="button" disabled
-          >{strings.chat.block(room.entry.peer.peerUsername)}</button
-        >
+        {#if confirmBlock}
+          <div
+            class="panel"
+            role="alertdialog"
+            aria-label={strings.chat.block(room.entry.peer.peerUsername)}
+          >
+            <p>{strings.chat.blockConfirm(room.entry.peer.peerUsername)}</p>
+            <div class="row">
+              <button class="button primary" type="button" onclick={() => void blockPeer()}
+                >{strings.chat.blockAction}</button
+              >
+              <button class="button" type="button" onclick={() => (confirmBlock = false)}
+                >{strings.chat.cancel}</button
+              >
+            </div>
+          </div>
+        {:else}
+          <button class="button" type="button" onclick={() => (confirmBlock = true)}>
+            {strings.chat.block(room.entry.peer.peerUsername)}
+          </button>
+        {/if}
       </div>
     {/if}
     {#if proposing}
@@ -264,5 +284,10 @@
     gap: var(--space-4);
     padding: var(--space-4) 0;
     overflow-y: auto;
+  }
+  .verified {
+    background: var(--fg);
+    color: var(--bg);
+    border-radius: var(--radius-control);
   }
 </style>

@@ -10,6 +10,13 @@ const carol = crypto.generateIdentity();
 
 const requests: { t: string; [k: string]: unknown }[] = [];
 let roomsResponse: { inboxRoomId: string; sealedHeader: string; unread: number }[] = [];
+let book: {
+  userId: string;
+  edPk: string;
+  username: string;
+  verified: boolean;
+  blocked: boolean;
+}[] = [];
 
 vi.mock('./account', () => ({
   activeSession: () => ({
@@ -29,6 +36,8 @@ vi.mock('./account', () => ({
   onSessionEnd: () => undefined,
   onSessionReady: () => undefined,
   rememberView: () => undefined,
+  contacts: () => book,
+  saveContacts: async () => undefined,
 }));
 
 const { chat, loadRooms } = await import('./chat.svelte');
@@ -92,5 +101,30 @@ describe('loadRooms menyaring entri tidak sah (PRD §8, D-013)', () => {
         inboxIdWith(carol),
       ].sort(),
     );
+  });
+});
+
+describe('loadRooms: akun yang diblokir (PRD §8)', () => {
+  it('room dari akun yang diblokir di-purge dan dilupakan tanpa ditampilkan', async () => {
+    const dave = crypto.generateIdentity();
+    book = [
+      {
+        userId: dave.userId,
+        edPk: base64urlEncode(dave.edPk),
+        username: 'dave',
+        verified: false,
+        blocked: true,
+      },
+    ];
+    requests.length = 0;
+    roomsResponse = [
+      { inboxRoomId: inboxIdWith(dave), sealedHeader: sealForMe(header(dave, 'dave')), unread: 3 },
+    ];
+    await loadRooms();
+    expect(chat.rooms).toEqual([]);
+    expect(requests.map((r) => r.t)).toEqual(
+      expect.arrayContaining(['room.purge', 'rooms.forget']),
+    );
+    book = [];
   });
 });
