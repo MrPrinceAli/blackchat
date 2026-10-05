@@ -162,8 +162,16 @@ export async function send(page: Page, text: string): Promise<void> {
   await expect(page.getByText('Mengirim...')).toHaveCount(0);
 }
 
+/**
+ * Buka room dengan `peer` dari daftar. Setelah refresh, aplikasi bisa membuka ulang room terakhir sendiri;
+ * dalam kasus itu klik tidak diperlukan (dan tombol daftar bisa hilang di tengah klik).
+ */
 export async function openRoomWith(page: Page, peer: string): Promise<void> {
-  await page.getByRole('button', { name: new RegExp(`^@${peer}`) }).click();
+  const composer = page.getByLabel('Tulis pesan');
+  const room = page.getByRole('button', { name: new RegExp(`^@${peer}`) });
+  await expect(composer.or(room)).toBeVisible();
+  if (!(await composer.isVisible())) await room.click({ timeout: 5_000 }).catch(() => undefined);
+  await expect(composer).toBeVisible();
   await expect(page.getByText(`@${peer}`, { exact: true })).toBeVisible();
 }
 

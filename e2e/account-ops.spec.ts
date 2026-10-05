@@ -92,8 +92,10 @@ test('blokir: percakapan dihapus dan pesan berikutnya dari akun itu tidak tampil
   await expect(a.page.getByText('Belum ada percakapan. Cari username untuk mulai.')).toBeVisible();
 
   // Pesan di server ikut terhapus: B tidak lagi melihat pesannya sendiri setelah sinkron.
+  // B kembali ke Home dulu supaya refresh tidak membuka ulang room secara otomatis (menghindari race di test).
+  await b.page.getByRole('button', { name: 'Kembali' }).click();
   await b.page.reload();
-  await expect(b.page.getByText(`@${a.username}`, { exact: true })).toBeVisible();
+  await openRoomWith(b.page, a.username);
   await b.page.waitForTimeout(500);
   await expect(b.page.getByText('pesan pertama', { exact: true })).toHaveCount(0);
 
