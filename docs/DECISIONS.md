@@ -182,3 +182,12 @@ Safety number tetap persis PRD §4.4 (tanpa label).
 - **Ganti password** meminta password sekarang. Kebenarannya dibuktikan dengan menurunkan ulang `vaultKey` dari salt server dan membandingkannya constant-time dengan `vaultKey` aktif (tanpa mengirim apa pun ke server). Urutan: `PUT password` (salt, authKey, vault baru), lalu `PUT contacts` (blob dienkripsi ulang dengan `vaultKey` baru). Jika langkah kedua gagal, blob lama tidak bisa dibuka dan dianggap kosong (diterima, dicatat di SECURITY.md).
 - **Hapus akun:** muat ulang daftar room → `room.purge` di setiap room dengan progres "Menghapus percakapan… n/total" → `DELETE /v1/account` → logout.
 - **QR safety number:** `qrcode-generator` (MIT, tanpa `innerHTML`/`eval`), modul QR digambar sendiri ke canvas. Isi QR = 60 digit (mode numerik).
+
+## D-020 — Rilis & domain (2026-10-05)
+**Konteks:** `blackchat.vercel.app` (nilai `ALLOWED_ORIGIN` di PRD §11.2) sudah dipakai orang lain. Domain web dan relay baru diketahui setelah akun Vercel/Cloudflare dibuat.
+**Keputusan:**
+- **Domain dikonfigurasi dengan satu perintah** (`pnpm configure-domains --web … --relay …`): mengisi host relay di CSP `apps/web/vercel.json` dan `ALLOWED_ORIGIN` produksi di `apps/relay/wrangler.toml` (env test tidak tersentuh). Skrip memvalidasi origin `https://` tanpa path dan bisa dijalankan ulang untuk ganti domain. Header preview untuk E2E menerima placeholder maupun host produksi.
+- **`deploy-relay.yml`** (push `main` yang mengubah relay/protokol, atau manual): dilewati dengan notice selama secret Cloudflare belum diisi; gagal jika `database_id` D1 masih placeholder; menjalankan test relay, migrasi D1 `--remote`, lalu `wrangler deploy`.
+- **`release-hash.yml`** (tag `v*`): build web dengan repository variable `VITE_RELAY_URL`, SHA-384 setiap file `dist/`, dan GitHub Release berisi `hashes.txt`.
+- **Web dideploy oleh integrasi Git Vercel** (Root Directory `apps/web`), bukan dari GitHub Actions, sehingga token Vercel tidak perlu disimpan di repo.
+- **`docs/acceptance.md`** memetakan seluruh butir PRD §15.2 ke test yang membuktikannya. **`SECURITY.md`** memuat model ancaman PRD §14 dengan status terbaru dan batasan yang diterima.

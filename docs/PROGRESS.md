@@ -15,8 +15,8 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 | W8 | Chat teks end-to-end | Selesai, merged | #14 |
 | W9 | Batalkan pesan & kesepakatan timer | Selesai, merged | #15 |
 | W10 | Gambar | Selesai, merged | #16 |
-| W11 | Kontak, verifikasi, blokir & settings | Selesai | branch `w11-kontak` |
-| W12 | Rilis: deploy, E2E penuh, dokumen | Belum mulai | — |
+| W11 | Kontak, verifikasi, blokir & settings | Selesai, merged | #17 |
+| W12 | Rilis: deploy, E2E penuh, dokumen | Selesai (menunggu langkah manual deploy) | branch `w12-rilis` |
 
 ---
 
@@ -164,3 +164,44 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 - Ditemukan & diperbaiki: setelah room lama dilupakan karena lawan berganti kunci, pengguna tidak langsung ditawari
   percakapan baru.
 - Keputusan baru: D-019.
+
+### 2026-10-05 — W12 Rilis
+- Selesai: `deploy-relay.yml`, `release-hash.yml`, skrip `configure-domains` (+ test), `docs/acceptance.md` (32 butir
+  PRD §15.2 → test), `SECURITY.md`, README lengkap (arsitektur, dev lokal, deploy langkah demi langkah), audit aturan
+  PRD §12 (lint + grep: tanpa `console`, tanpa sink HTML, storage hanya di `session.ts`/`theme.ts`, satu-satunya
+  `fetch` ke relay).
+- Keputusan baru: D-020.
+- **Belum dilakukan: deploy.** Relay dan web baru live setelah langkah manual di bawah (akun & secret milik pemilik).
+
+## Opsi domain
+
+`blackchat.vercel.app`, `lebur.vercel.app`, dan `blackchat-app.vercel.app` sudah dipakai orang lain. Nama di bawah
+belum punya deployment saat dicek (2026-10-05). Kepastian baru ada saat membuat project di Vercel (nama project = subdomain).
+
+| Nama project Vercel | Alamat web | Kesan |
+|---|---|---|
+| `leburchat` | https://leburchat.vercel.app | Paling dekat dengan fitur utama (pesan melebur) |
+| `pesanlebur` | https://pesanlebur.vercel.app | Deskriptif, mudah dipahami |
+| `sekalibaca` | https://sekalibaca.vercel.app | Menekankan "sekali lihat" |
+| `bisikhitam` | https://bisikhitam.vercel.app | Sesuai tema hitam putih & rahasia |
+| `hanguschat` | https://hanguschat.vercel.app | Menekankan akun yang hangus 3 hari |
+| `arsiphitam` | https://arsiphitam.vercel.app | Sesuai arah visual "arsip rahasia digital" (PRD §10.1) |
+| `blackchatid` | https://blackchatid.vercel.app | Tetap memakai nama BlackChat |
+| `blkchat` | https://blkchat.vercel.app | Singkat |
+
+Domain sendiri (misal `blackchat.id`) juga bisa dipakai lewat Vercel → Domains. Relay bisa tetap di
+`*.workers.dev` atau memakai subdomain sendiri (misal `relay.blackchat.id`). Setelah memilih:
+`pnpm configure-domains --web https://<web> --relay https://<relay>`.
+
+## Checklist manual pemilik proyek (PRD §16.1)
+
+- [ ] 2FA (passkey/security key) di GitHub, Vercel, Cloudflare.
+- [ ] Branch protection `main`: wajib PR + CI hijau, signed commits.
+- [ ] Aktifkan GitHub → Settings → Code security → Private vulnerability reporting (SECURITY.md).
+- [ ] `wrangler login`, lalu `wrangler d1 create blackchat` → isi `database_id` di `apps/relay/wrangler.toml`.
+- [ ] `wrangler secret put SALT_SECRET --env=""` (32 byte acak: `openssl rand -hex 32`).
+- [ ] GitHub Secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`. GitHub Variables: `VITE_RELAY_URL`.
+- [ ] Pilih domain (tabel di atas), jalankan `pnpm configure-domains …`, commit lewat PR → merge → relay ter-deploy.
+- [ ] Vercel: import repo, Root Directory `apps/web`, Node 22, env `VITE_RELAY_URL` + `ENABLE_EXPERIMENTAL_COREPACK=1`,
+      matikan Analytics & Speed Insights, aktifkan Deployment Protection.
+- [ ] Uji dengan dua perangkat sungguhan, lalu `git tag v1.0.0 && git push origin v1.0.0` untuk rilis dengan hash.
