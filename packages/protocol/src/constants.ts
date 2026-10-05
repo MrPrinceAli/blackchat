@@ -210,6 +210,10 @@ export const LIMITS = {
   HTTP_BODY_MAX_BYTES: 64 * KIB,
   /** Batas ukuran frame WS JSON. */
   WS_JSON_FRAME_MAX_BYTES: 64 * KIB,
+  /** Entri room maksimal di satu InboxDO (membatasi storage yang bisa diisi pihak lain lewat touch). */
+  INBOX_MAX_ROOMS: 1000,
+  /** Socket yang belum lolos challenge maksimal per InboxDO; yang tertua ditutup. */
+  INBOX_MAX_PENDING_SOCKETS: 4,
 } as const;
 
 /** Rate limit — PRD §6.4, D-003. */

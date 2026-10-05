@@ -8,8 +8,8 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 | W1 | Protocol | Selesai, merged | #2 → #6 |
 | W2 | Crypto inti | Selesai, merged | #3 → #6 |
 | W3 | Crypto room & pesan | Selesai, merged | #4 → #7 |
-| W4 | Relay: akun & limiter | Selesai, PR terbuka | branch `w4-relay-akun` |
-| W5 | Relay: InboxDO & RoomDO | Belum mulai | — |
+| W4 | Relay: akun & limiter | Selesai, merged | #10 |
+| W5 | Relay: InboxDO & RoomDO | Selesai | branch `w5-relay-do` |
 | W6 | Web: fondasi & UI statis | Belum mulai | — |
 | W7 | Web: akun, sesi & koneksi | Belum mulai | — |
 | W8 | Chat teks end-to-end | Belum mulai | — |
@@ -88,5 +88,14 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
   baru tertangkap setelah test "xPkSig palsu dengan request bertanda tangan sah" ditambahkan).
 - CI: langkah baru `check:bundle` memastikan route test tidak ada di bundle produksi (kontrol negatif terbukti gagal).
 - Keputusan baru: D-012 (kunci limiter dari `SALT_SECRET` mengoreksi D-003; `compatibility_date` 2026-08-22).
-- Tertunda: review & merge PR W4. Relay belum di-deploy (W12, D-005).
+- Relay belum di-deploy (W12, D-005).
 - Langkah manual untuk user: tidak ada untuk W4. Akun Cloudflare + 2FA baru dibutuhkan di W12.
+
+### 2026-10-05 — W5 Relay: InboxDO & RoomDO
+- Selesai: `GET /v1/ws/:userId` → InboxDO (WebSocket hibernatable, auto-response ping, challenge Ed25519, satu socket
+  per akun setelah auth), daftar room + `touch`/`event` antar-inbox (D-001), penjaga akun mati, alarm hangus;
+  RoomDO (`init`, `send`, `sync`, `opened`, `purge`, alarm lebur/upload/hangus, anti-replay `opNonce`, batas 200 pesan).
+- Test: 79 di relay (35 baru). Mutasi manual pada 11 pemeriksaan: semuanya tertangkap setelah dua test ditambahkan
+  (lawan yang menghapus akun; event ke socket yang belum terautentikasi).
+- Keputusan baru: D-013 (termasuk risiko yang diterima soal routing touch/event).
+- Tertunda: `room.retract`/`room.ttl` (W9) dan chunk gambar (W10) masih dibalas `invalid`.

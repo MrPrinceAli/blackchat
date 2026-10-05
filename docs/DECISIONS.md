@@ -105,3 +105,16 @@ Safety number tetap persis PRD §4.4 (tanpa label).
 - **`compatibility_date` = 2026-08-22** (PRD §11.2: 2026-10-01). Runtime workerd di `@cloudflare/vitest-pool-workers` 0.22 (versi terbaru saat ini) hanya mendukung sampai 2026-08-22. Tanggal yang sama dipakai untuk test dan produksi agar yang diuji sama dengan yang di-deploy. Naikkan bersama paket itu.
 - **Route test** (`/__test/clock`, `/__test/cron`) ada di `src/test-routes.ts` dan hanya dimuat saat `__BC_TEST__`. `tooling/check-relay-bundle.js` (dijalankan di CI) memastikan bundle produksi tidak memuatnya; dibuktikan dengan kontrol negatif (bundle env test ditolak).
 **Konsekuensi:** D-003 dikoreksi oleh poin pertama. Test relay berjalan di workerd lewat `@cloudflare/vitest-pool-workers`.
+
+## D-013 — Detail InboxDO & RoomDO (2026-10-05)
+**Konteks:** PRD §6.1–§6.3 tidak mengatur beberapa perilaku yang menentukan keamanan relay realtime.
+**Keputusan:**
+- **Satu socket per akun, ditegakkan setelah autentikasi.** Socket lama baru ditutup (4409) setelah socket baru lolos challenge Ed25519. Socket yang belum terautentikasi dibatasi 4 per inbox (yang tertua ditutup 4401), tidak menerima event, dan tidak bisa memutus pemilik akun.
+- **Penjaga akun mati:** tabel InboxDO baru dibuat setelah akun terbukti hidup di D1 (saat connect atau `touch`). Akun tidak ada/hangus → socket ditutup 4410 dan storage dikosongkan. Tabel RoomDO baru dibuat oleh `init`; operasi lain pada room kosong tidak menulis apa pun.
+- **`room.send` memeriksa lawan masih hidup** di D1 sebelum menyimpan pesan, sehingga pesan untuk akun yang sudah dihapus tidak pernah tersimpan.
+- **RPC antar-DO** mengembalikan `{ok, value} | {ok:false, error}`, bukan exception (kelas error hilang di batas RPC). RoomDO memvalidasi ulang op & auth, dan menolak op yang `roomId`-nya bukan nama DO itu.
+- **Timer record = min(ttl pesan, ttl room yang berlaku)**, sehingga timer pesan tidak pernah lebih lama dari yang disepakati. `seq` diambil dari penghitung `next_seq` yang tidak pernah turun (tidak dipakai ulang setelah pesan dihapus).
+- **`room.init` menyentuh inbox lawan dengan unread 0**, jadi percakapan muncul di daftar lawan sebelum pesan pertama. `touch` tidak pernah menimpa header entri yang sudah ada; unread dibatasi 200; inbox maksimal 1000 room.
+- **Notifikasi pesan gambar** dikirim setelah semua chunk masuk (W10); di W5 hanya pesan tanpa chunk yang memicu `new`.
+- **Frame `expiring` tidak dikirim server.** Sisa umur akun dikirim di `ready` (`remainingMs`), dan client menghitung peringatan 24 jam/1 jam/5 menit sendiri (PRD §10.3, §13.3).
+**Risiko yang diterima (dicatat untuk SECURITY.md di W12):** karena InboxDO tidak tahu siapa lawan bicara (PRD §2.1 prinsip 3), anggota room mana pun bisa mengarahkan `touch`/`event` ke inbox yang ia sebut. Akibatnya terbatas pada: menaikkan penghitung belum dibuka, mengirim event palsu, atau menambah entri room berisi header sampah di daftar korban (maks 1000, dibatasi 30 kirim/menit). Isi pesan tetap aman. Client wajib mengabaikan event untuk `inboxRoomId` yang tidak dikenal dan melupakan entri yang headernya gagal dibuka (`openHeader`).
