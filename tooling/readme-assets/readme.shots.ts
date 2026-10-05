@@ -1,5 +1,6 @@
 // Gambar README: banner, social preview, dan screenshot aplikasi (dark/light, mobile/desktop).
 // Bukan bagian suite test. Jalankan: pnpm readme:assets (butuh relay & build lokal seperti E2E).
+import { copyFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { PASSWORD, relay } from '../../e2e/helpers';
@@ -157,6 +158,7 @@ test('screenshot README', async ({ browser, request }) => {
   const box = (await own.boundingBox())!;
   await own.click({ button: 'right', position: { x: 12, y: box.height - 4 } });
   await expect(dimas.getByRole('menuitem', { name: /Batalkan pesan/ })).toBeVisible();
+  await dimas.waitForTimeout(400);
   await dimas.screenshot({ path: `${OUT}/retract.png` });
   await dimas.keyboard.press('Escape');
 
@@ -165,6 +167,7 @@ test('screenshot README', async ({ browser, request }) => {
   await dimas.getByText('3 dtk', { exact: true }).click();
   await dimas.getByRole('button', { name: 'Usulkan', exact: true }).click();
   await expect(rara.getByText('@dimas ingin mengubah timer ke 3 detik.')).toBeVisible();
+  await rara.waitForTimeout(400);
   await rara.screenshot({ path: `${OUT}/ttl.png` });
 
   // Verifikasi.
@@ -201,6 +204,19 @@ test('screenshot README', async ({ browser, request }) => {
   await deskPage.waitForTimeout(1200);
   await deskPage.screenshot({ path: `${OUT}/desktop-chat.png` });
 
+  // Halaman masuk (logo di atas judul).
+  const auth = await browser.newContext({
+    viewport: MOBILE,
+    deviceScaleFactor: 2,
+    colorScheme: 'dark',
+  });
+  const ap = await auth.newPage();
+  await ap.goto('http://localhost:4173/');
+  await ap.getByRole('button', { name: 'Masuk' }).click();
+  await expect(ap.getByRole('heading', { name: 'Masuk' })).toBeVisible();
+  await ap.waitForTimeout(600);
+  await ap.screenshot({ path: `${OUT}/login.png` });
+
   // Tema terang.
   const light = await browser.newContext({
     viewport: MOBILE,
@@ -227,4 +243,22 @@ test('banner & social preview', async ({ browser }) => {
     await page.locator('canvas').screenshot({ path: `${ASSETS}/${name}`, scale: 'device' });
   }
   await page.close();
+});
+
+test('ikon aplikasi & og image', async ({ browser }) => {
+  const page = await browser.newPage({ deviceScaleFactor: 1 });
+  const file = pathToFileURL('tooling/readme-assets/icon.html').href;
+  for (const [name, size, pad] of [
+    ['apple-touch-icon.png', 180, 0.72],
+    ['icon-192.png', 192, 0.72],
+    ['icon-512.png', 512, 0.72],
+    ['icon-maskable-512.png', 512, 0.56],
+  ] as const) {
+    await page.setViewportSize({ width: size, height: size });
+    await page.goto(`${file}?s=${size}&pad=${pad}`);
+    await page.locator('body[data-ready="1"]').waitFor();
+    await page.locator('#icon').screenshot({ path: `apps/web/public/${name}` });
+  }
+  await page.close();
+  copyFileSync(`${ASSETS}/social-preview.png`, 'apps/web/public/og.png');
 });

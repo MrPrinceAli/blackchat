@@ -105,6 +105,17 @@ test('tidak aktif 10 menit → peringatan, lalu terkunci; storage sesi kosong', 
   await expect(
     page.getByText('Sesi akan dikunci dalam 60 detik karena tidak ada aktivitas.'),
   ).toBeVisible();
+  // Scroll yang bukan dari pengguna (program/tata letak) tidak menunda kunci (D-022).
+  await page.evaluate(() => {
+    document.documentElement.style.minHeight = '200vh';
+    scrollTo(0, 40);
+  });
+  await page.waitForTimeout(300);
+  await expect(page.getByRole('button', { name: 'Tetap masuk' })).toBeVisible();
+  await page.evaluate(() => {
+    scrollTo(0, 0);
+    document.documentElement.style.minHeight = '';
+  });
   await page.getByRole('button', { name: 'Tetap masuk' }).click();
   await expect(page.getByText('Sesi akan dikunci dalam 60 detik')).toHaveCount(0);
 

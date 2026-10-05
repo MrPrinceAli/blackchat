@@ -23,20 +23,64 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  background: var(--bg);
 }
 
 body {
   margin: 0;
   min-height: 100dvh;
-  background: var(--bg);
+  /* Latar di <html>: background body akan menutupi lapisan grid titik (z-index -1). */
   color: var(--fg);
   font-family: var(--font-ui);
   font-size: var(--step-0);
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   /* Teks aplikasi tidak bisa diseleksi/disalin (PRD §9); input tetap bisa. */
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Latar: grid titik ala kertas arsip, memudar ke tepi (D-021). Dekoratif, di belakang semua isi. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(var(--dot) 1px, transparent 1.2px);
+  background-size: 22px 22px;
+  background-position: center top;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 10%, transparent 75%);
+}
+
+/* Bingkai potong (crop marks) di layar lebar: kesan dokumen rahasia. */
+@media (min-width: 760px) {
+  body::after {
+    --tick: 14px;
+    --c: var(--line-strong);
+    content: '';
+    position: fixed;
+    inset: 20px;
+    pointer-events: none;
+    background:
+      linear-gradient(var(--c), var(--c)) top left / var(--tick) 1px,
+      linear-gradient(var(--c), var(--c)) top left / 1px var(--tick),
+      linear-gradient(var(--c), var(--c)) top right / var(--tick) 1px,
+      linear-gradient(var(--c), var(--c)) top right / 1px var(--tick),
+      linear-gradient(var(--c), var(--c)) bottom left / var(--tick) 1px,
+      linear-gradient(var(--c), var(--c)) bottom left / 1px var(--tick),
+      linear-gradient(var(--c), var(--c)) bottom right / var(--tick) 1px,
+      linear-gradient(var(--c), var(--c)) bottom right / 1px var(--tick);
+    background-repeat: no-repeat;
+  }
+}
+
+::selection {
+  background: var(--fg);
+  color: var(--bg);
 }
 
 input,
@@ -47,6 +91,7 @@ textarea {
 
 h1,
 h2,
+h3,
 p {
   margin: 0;
 }
@@ -64,7 +109,7 @@ button {
 
 :focus-visible {
   outline: 2px solid var(--fg);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
 .code {
@@ -85,49 +130,207 @@ button {
   white-space: nowrap;
 }
 
-/* Tombol pil (radius kontrol) dan tautan teks. */
+/* Label kecil mono ala metadata dokumen (D-021). Selalu huruf kecil/sentence case, tanpa kapital semua. */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-code);
+  font-size: var(--step--2);
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.eyebrow::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+}
+
+/* ------------------------------------------------------------------ tombol */
 .button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
+  gap: var(--space-2);
+  min-height: 48px;
   padding: 0 var(--space-6);
-  border: 1px solid var(--fg);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-control);
   background: transparent;
   color: var(--fg);
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+.button:hover:not(:disabled) {
+  border-color: var(--fg);
+  background: var(--tint-1);
+}
+.button:active:not(:disabled) {
+  transform: scale(0.985);
 }
 
 .button.primary {
+  border-color: var(--fg);
   background: var(--fg);
   color: var(--bg);
+}
+.button.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--fg) 86%, var(--bg));
+}
+
+/* Panah yang bergeser saat hover pada tombol utama. */
+.button .arrow {
+  display: inline-block;
+  transition: transform var(--dur-2) var(--ease-spring);
+}
+.button:hover:not(:disabled) .arrow {
+  transform: translateX(4px);
+}
+
+.button.danger {
+  border-style: dashed;
 }
 
 .button:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
-.field {
-  display: grid;
-  gap: var(--space-1);
+/* Status sibuk: garis pindai bergerak di dasar tombol. */
+.button.busy::after {
+  content: '';
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 9px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, currentColor, transparent);
+  background-size: 50% 100%;
+  background-repeat: no-repeat;
+  animation: scan 1.1s linear infinite;
+}
+@keyframes scan {
+  from {
+    background-position: -100% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
 }
 
-.field input {
-  min-height: 44px;
-  padding: 0 var(--space-4);
-  border: 1px solid var(--line);
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid transparent;
   border-radius: var(--radius-control);
   background: transparent;
+  color: var(--fg);
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+.icon-button:hover:not(:disabled) {
+  background: var(--tint-2);
+}
+.icon-button:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.icon-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
+/* ------------------------------------------------------------------ form */
+.field {
+  display: grid;
+  gap: var(--space-2);
+}
+.field label {
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.input,
+.field input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-field);
+  background: var(--surface);
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    outline-color var(--dur-1) var(--ease-out),
+    background-color var(--dur-1) var(--ease-out);
+}
+.input:hover:not(:disabled),
+.field input:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+.input:focus-visible,
 .field input:focus-visible {
   border-color: var(--fg);
+  outline: 4px solid var(--tint-2);
+  outline-offset: 0;
+}
+.input::placeholder,
+.field input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
 }
 
 .hint {
   font-size: var(--step--1);
   color: var(--muted);
+}
+
+/* Pesan status/peringatan: kartu bergaris dengan penanda kotak di kiri. */
+.notice,
+.error {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  font-size: var(--step--1);
+  animation: enter var(--dur-2) var(--ease-out) both;
+}
+.notice::before,
+.error::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 0.55em;
+  background: var(--fg);
+}
+.error {
+  border-color: var(--fg);
+}
+
+/* ------------------------------------------------------------------ kartu */
+.card {
+  position: relative;
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
 }
 
 /* Sensor saat jendela tidak fokus atau tab tersembunyi (PRD §9). */
@@ -147,11 +350,19 @@ button {
   }
 }
 
+/* Masuk = fade saja: posisi tidak bergeser, jadi elemen langsung bisa diklik dengan presisi. */
+@keyframes enter {
+  from {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }
@@ -165,25 +376,83 @@ button {
   max-width: var(--content-max);
   min-height: 100dvh;
   margin: 0 auto;
-  padding: var(--space-4);
+  padding: max(var(--space-4), env(safe-area-inset-top)) var(--space-5)
+    max(var(--space-6), env(safe-area-inset-bottom));
+  animation: enter var(--dur-3) var(--ease-out) both;
 }
 
 .screen.chat {
   height: 100dvh;
+  padding-bottom: 0;
+}
+
+@media (max-width: 360px) {
+  .screen {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
 }
 
 .back {
   align-self: flex-start;
-  width: 44px;
-  height: 44px;
   margin-left: calc(-1 * var(--space-2));
-  border: 0;
-  background: transparent;
-  font-size: var(--step-1);
 }
 
 h1 {
-  font-size: var(--step-2);
+  font-size: var(--step-3);
   font-weight: 600;
-  letter-spacing: -0.01em;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+/* ------------------------------------------------------------------ layar masuk & daftar */
+.screen.auth {
+  gap: var(--space-8);
+}
+.auth-body {
+  display: grid;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 440px;
+  margin: auto;
+}
+.auth-intro {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+}
+.auth-intro h1 {
+  margin-top: var(--space-3);
+}
+.auth-intro .subtitle {
+  color: var(--muted);
+}
+.form-card input {
+  background: var(--bg);
+}
+.form-card {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.switch {
+  font-size: var(--step--1);
+  color: var(--muted);
+  text-align: center;
+}
+.link-button {
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+.link-button:hover {
+  text-decoration-thickness: 2px;
 }

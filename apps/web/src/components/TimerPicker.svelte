@@ -25,29 +25,41 @@
     margin: 0;
     display: grid;
     gap: var(--space-2);
+    min-width: 0;
   }
   legend {
     padding: 0;
     margin-bottom: var(--space-2);
+    font-size: var(--step--1);
+    color: var(--muted);
   }
+  /* Satu pil tersegmentasi: pilihan aktif dibalik warnanya. */
   .options {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: var(--space-2);
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-control);
   }
   .option {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 44px;
-    border: 1px solid var(--line);
+    min-height: 40px;
     border-radius: var(--radius-control);
+    font-size: var(--step--1);
     cursor: pointer;
+    transition:
+      background-color var(--dur-2) var(--ease-out),
+      color var(--dur-2) var(--ease-out);
+  }
+  .option:hover:not(.selected) {
+    background: var(--tint-2);
   }
   .option.selected {
     background: var(--fg);
     color: var(--bg);
-    border-color: var(--fg);
   }
   .option:has(input:focus-visible) {
     outline: 2px solid var(--fg);

@@ -238,7 +238,9 @@
       {/if}
       {#if status === 'opened'}
         <div class="countdown" role="timer" aria-label={strings.chat.secondsLeft(seconds)}>
-          <span class="line" style:transform={`scaleX(${progress})`}></span>
+          <span class="track"
+            ><span class="line" style:transform={`scaleX(${progress})`}></span></span
+          >
           <span class="code seconds">{seconds}</span>
         </div>
       {:else if mine && status === 'delivered'}
@@ -276,8 +278,19 @@
     padding: var(--space-3) var(--space-4);
     border: 1px solid var(--fg);
     border-radius: var(--radius-bubble);
+    /* Tanpa latar pada pesan masuk: efek lebur hanya menjatuhkan piksel garis & teks (PRD §10.4). */
+    line-height: 1.45;
     overflow: hidden;
     overflow-wrap: anywhere;
+    animation: arrive var(--dur-2) var(--ease-out) both;
+  }
+  @keyframes arrive {
+    from {
+      opacity: 0;
+    }
+  }
+  .bubble.mine:focus-visible {
+    outline-offset: 3px;
   }
   .bubble.mine {
     background: var(--fg);
@@ -298,12 +311,24 @@
     display: grid;
     gap: var(--space-2);
     min-width: 180px;
-    border-color: var(--line);
+    border-color: var(--line-strong);
+    border-style: dashed;
   }
+  /* Teks tersensor: blok solid dengan kilau pindai pelan (pesan antre, isi belum dibuka). */
   .bars {
     display: block;
     height: 12px;
-    background: var(--fg);
+    background:
+      linear-gradient(
+          90deg,
+          transparent,
+          color-mix(in srgb, var(--bg) 45%, transparent),
+          transparent
+        )
+        no-repeat,
+      var(--fg);
+    background-size: 40% 100%;
+    animation: scan 2.4s linear infinite;
   }
   .label,
   .meta {
@@ -316,9 +341,15 @@
     /* Selebar bubble juga di sisi kanan (pesan sendiri), di mana tumpukan rata kanan. */
     justify-self: stretch;
   }
-  .line {
+  .track {
     flex: 1;
-    height: 1px;
+    height: 2px;
+    background: var(--line);
+    overflow: hidden;
+  }
+  .line {
+    display: block;
+    height: 100%;
     background: var(--fg);
     transform-origin: left center;
   }
@@ -326,7 +357,17 @@
     font-size: var(--step--1);
   }
   .tombstone {
-    font-size: var(--step--1);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
     padding: var(--space-2) 0;
+    font-family: var(--font-code);
+    font-size: var(--step--2);
+  }
+  .tombstone::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border: 1px dashed currentColor;
   }
 </style>

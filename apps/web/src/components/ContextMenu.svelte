@@ -57,8 +57,19 @@
     z-index: 100;
     min-width: 200px;
     max-width: 280px;
+    padding: 4px;
     border: 1px solid var(--fg);
+    border-radius: var(--radius-card);
+    /* Latar solid: teks di bawah menu tidak boleh tembus (keterbacaan). */
     background: var(--bg);
+    transform-origin: top left;
+    animation: pop var(--dur-2) var(--ease-spring) both;
+  }
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: scale(0.94);
+    }
   }
   button {
     display: grid;
@@ -66,6 +77,7 @@
     width: 100%;
     padding: var(--space-3) var(--space-4);
     border: 0;
+    border-radius: 3px;
     background: transparent;
     text-align: left;
   }

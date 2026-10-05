@@ -12,10 +12,27 @@ export const strings = {
     createAccount: 'Buat akun',
     signIn: 'Masuk',
     incognitoHint: 'Untuk privasi terbaik, buka di mode incognito tanpa ekstensi.',
+    eyebrow: 'arsip rahasia · end-to-end',
+    edition: 'e2ee · tanpa log',
+    specs: ['lebur 3–10 dtk', 'hangus 72 jam', 'tanpa email', 'nol plaintext di server'],
+    preview: {
+      label: 'pratinjau',
+      peer: '@rara',
+      message: 'jam 8 di tempat biasa',
+      reply: 'oke, aku datang',
+      watermark: 'PRATINJAU',
+      footer: 'Kunci hanya ada di perangkat ini.',
+    },
+    stack: 'x25519 · ed25519 · xchacha20-poly1305 · argon2id',
   },
 
   register: {
     title: 'Buat akun',
+    subtitle: 'Cukup username dan password. Tanpa email, tanpa nomor HP.',
+    haveAccount: 'Sudah punya akun?',
+    toLogin: 'Masuk di sini',
+    strength: (level: number) =>
+      ['Terlalu pendek, minimal 10 karakter.', 'Cukup.', 'Kuat.', 'Sangat kuat.'][level] ?? '',
     username: 'Username',
     usernameHint: 'Huruf kecil, angka, atau garis bawah. 3–20 karakter.',
     available: 'Tersedia',
@@ -41,6 +58,9 @@ export const strings = {
 
   login: {
     title: 'Masuk',
+    subtitle: 'Kunci akun dibuka di perangkat ini. Password tidak pernah dikirim.',
+    noAccount: 'Belum punya akun?',
+    toRegister: 'Buat sekarang',
     username: 'Username',
     password: 'Password',
     submit: 'Masuk',
@@ -62,6 +82,9 @@ export const strings = {
     invalidPeer: 'Kunci akun ini tidak valid. Percakapan tidak bisa dimulai.',
     startFailed: 'Gagal memulai percakapan. Coba lagi.',
     loading: 'Memuat percakapan...',
+    signedInAs: 'masuk sebagai',
+    expiresIn: 'hangus dalam',
+    conversations: 'percakapan',
   },
 
   timer: {
@@ -81,6 +104,9 @@ export const strings = {
   },
 
   chat: {
+    statusEncrypted: 'terenkripsi end-to-end',
+    statusVerified: 'kunci terverifikasi',
+    e2eNote: (ttl: number) => `Terenkripsi end-to-end · melebur ${ttl} dtk setelah dibaca`,
     back: 'Kembali',
     verify: 'Verifikasi',
     menu: 'Menu percakapan',
@@ -115,6 +141,8 @@ export const strings = {
       `Bandingkan angka ini dengan ${at(username)} secara langsung. Jika sama, tidak ada yang menyadap percakapan kalian.`,
     mark: 'Tandai terverifikasi',
     verified: 'Terverifikasi',
+    numberLabel: 'safety number · 60 digit',
+    qrLabel: (username: string) => `atau pindai dari perangkat ${at(username)}`,
   },
 
   settings: {
@@ -134,11 +162,16 @@ export const strings = {
     newPassword: 'Password baru',
     wrongPassword: 'Password sekarang salah.',
     passwordChanged: 'Password diganti.',
+    sectionDisplay: 'tampilan',
+    sectionAccount: 'akun',
+    sectionDanger: 'zona bahaya',
+    dangerNote: 'Semua percakapan dihapus dari server. Tidak bisa dibatalkan.',
   },
 
   expired: {
     message: 'Akun ini telah hangus. Semua pesan sudah dihapus.',
     createNew: 'Buat akun baru',
+    eyebrow: 'umur akun habis · 72 jam',
   },
 
   account: {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { AccountError, changePassword, deleteAccount, end } from '../lib/account';
   import { app } from '../lib/app-state.svelte';
   import { purgeAllRooms } from '../lib/chat.svelte';
@@ -67,141 +68,188 @@
   }
 </script>
 
-<main class="screen">
+<main class="screen settings">
   <button
-    class="back"
+    class="icon-button back"
     type="button"
     onclick={() => navigate('home')}
     aria-label={strings.chat.back}
-    disabled={deleting !== null}>←</button
+    disabled={deleting !== null}><Icon name="back" /></button
   >
   <h1>{strings.settings.title}</h1>
 
-  <fieldset class="group">
-    <legend>{strings.settings.theme}</legend>
-    {#each options as option (option.value)}
-      <label class="choice">
-        <input type="radio" name="theme" value={option.value} bind:group={theme} />
-        {option.label}
-      </label>
-    {/each}
-  </fieldset>
-
-  <div class="actions">
-    {#if changing}
-      <form class="form" onsubmit={submitPassword} novalidate>
-        <div class="field">
-          <label for="pw-current">{strings.settings.currentPassword}</label>
+  <section class="section">
+    <h2 class="eyebrow">{strings.settings.sectionDisplay}</h2>
+    <fieldset class="segmented">
+      <legend class="visually-hidden">{strings.settings.theme}</legend>
+      {#each options as option (option.value)}
+        <label class="segment" class:selected={theme === option.value}>
           <input
-            id="pw-current"
-            type="password"
-            autocomplete="current-password"
-            bind:value={current}
-            disabled={passwordBusy}
+            class="visually-hidden"
+            type="radio"
+            name="theme"
+            value={option.value}
+            bind:group={theme}
           />
-        </div>
-        <div class="field">
-          <label for="pw-next">{strings.settings.newPassword}</label>
-          <input
-            id="pw-next"
-            type="password"
-            autocomplete="new-password"
-            bind:value={next}
-            disabled={passwordBusy}
-          />
-        </div>
-        <div class="field">
-          <label for="pw-repeat">{strings.register.repeatPassword}</label>
-          <input
-            id="pw-repeat"
-            type="password"
-            autocomplete="new-password"
-            bind:value={repeat}
-            disabled={passwordBusy}
-          />
-        </div>
-        <button class="button primary" type="submit" disabled={passwordBusy}>
-          {passwordBusy ? strings.register.securing : strings.settings.changePassword}
-        </button>
-      </form>
-    {:else}
-      <button class="button" type="button" onclick={() => (changing = true)}
-        >{strings.settings.changePassword}</button
-      >
-    {/if}
-    {#if passwordMessage}<p class="notice" role="status">{passwordMessage}</p>{/if}
+          {option.label}
+        </label>
+      {/each}
+    </fieldset>
+  </section>
 
-    <button
-      class="button"
-      type="button"
-      onclick={() => void end('logout')}
-      disabled={deleting !== null}
-    >
-      {strings.settings.signOut}
-    </button>
+  <section class="section">
+    <h2 class="eyebrow">{strings.settings.sectionAccount}</h2>
+    <div class="card stack">
+      {#if changing}
+        <form class="stack" onsubmit={submitPassword} novalidate>
+          <div class="field">
+            <label for="pw-current">{strings.settings.currentPassword}</label>
+            <input
+              id="pw-current"
+              type="password"
+              autocomplete="current-password"
+              bind:value={current}
+              disabled={passwordBusy}
+            />
+          </div>
+          <div class="field">
+            <label for="pw-next">{strings.settings.newPassword}</label>
+            <input
+              id="pw-next"
+              type="password"
+              autocomplete="new-password"
+              bind:value={next}
+              disabled={passwordBusy}
+            />
+          </div>
+          <div class="field">
+            <label for="pw-repeat">{strings.register.repeatPassword}</label>
+            <input
+              id="pw-repeat"
+              type="password"
+              autocomplete="new-password"
+              bind:value={repeat}
+              disabled={passwordBusy}
+            />
+          </div>
+          <button
+            class="button primary"
+            class:busy={passwordBusy}
+            type="submit"
+            disabled={passwordBusy}
+          >
+            {passwordBusy ? strings.register.securing : strings.settings.changePassword}
+          </button>
+        </form>
+      {:else}
+        <button class="button" type="button" onclick={() => (changing = true)}
+          >{strings.settings.changePassword}</button
+        >
+      {/if}
+      {#if passwordMessage}<p class="notice" role="status">{passwordMessage}</p>{/if}
 
-    {#if deleting}
-      <p class="notice" role="status">
-        {strings.settings.deleting} <span class="code">{deleting.done}/{deleting.total}</span>
-      </p>
-    {:else if confirming}
-      <div class="field">
-        <label for="confirm-delete">{strings.settings.deleteConfirm(app.username)}</label>
-        <input
-          id="confirm-delete"
-          autocomplete="off"
-          autocapitalize="none"
-          spellcheck="false"
-          bind:value={typed}
-        />
-      </div>
       <button
-        class="button primary"
+        class="button"
         type="button"
-        disabled={typed !== app.username}
-        onclick={remove}
+        onclick={() => void end('logout')}
+        disabled={deleting !== null}
       >
-        {strings.settings.deleteNow}
+        {strings.settings.signOut}
       </button>
-    {:else}
-      <button class="button" type="button" onclick={() => (confirming = true)}
-        >{strings.settings.deleteNow}</button
-      >
-    {/if}
-    {#if deleteError}<p class="notice" role="alert">{deleteError}</p>{/if}
-  </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="eyebrow">{strings.settings.sectionDanger}</h2>
+    <div class="card stack danger-zone">
+      <p class="hint">{strings.settings.dangerNote}</p>
+      {#if deleting}
+        <p class="notice" role="status">
+          {strings.settings.deleting} <span class="code">{deleting.done}/{deleting.total}</span>
+        </p>
+      {:else if confirming}
+        <div class="field">
+          <label for="confirm-delete">{strings.settings.deleteConfirm(app.username)}</label>
+          <input
+            id="confirm-delete"
+            autocomplete="off"
+            autocapitalize="none"
+            spellcheck="false"
+            bind:value={typed}
+          />
+        </div>
+        <button
+          class="button primary"
+          type="button"
+          disabled={typed !== app.username}
+          onclick={remove}
+        >
+          {strings.settings.deleteNow}
+        </button>
+      {:else}
+        <button class="button danger" type="button" onclick={() => (confirming = true)}
+          >{strings.settings.deleteNow}</button
+        >
+      {/if}
+      {#if deleteError}<p class="notice" role="alert">{deleteError}</p>{/if}
+    </div>
+  </section>
 </main>
 
 <style>
-  .group {
-    border: 0;
-    padding: 0;
+  .settings {
+    gap: var(--space-6);
+  }
+  .section {
+    display: grid;
+    gap: var(--space-3);
+  }
+  h2.eyebrow {
+    font-weight: 400;
+  }
+  .stack {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .card .field input {
+    background: var(--bg);
+  }
+  /* Kontrol tersegmentasi untuk tema: satu pil berisi tiga pilihan. */
+  .segmented {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
     margin: 0;
+    padding: 4px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-control);
+  }
+  .segment {
     display: grid;
-    gap: var(--space-2);
+    place-items: center;
+    min-height: 40px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-control);
+    font-size: var(--step--1);
+    text-align: center;
+    cursor: pointer;
+    transition:
+      background-color var(--dur-2) var(--ease-out),
+      color var(--dur-2) var(--ease-out);
   }
-  legend {
-    padding: 0;
-    margin-bottom: var(--space-2);
+  .segment:hover:not(.selected) {
+    background: var(--tint-2);
   }
-  .choice {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    min-height: 44px;
+  .segment.selected {
+    background: var(--fg);
+    color: var(--bg);
   }
-  .choice input {
-    accent-color: var(--fg);
-    width: 18px;
-    height: 18px;
+  .segment:has(input:focus-visible) {
+    outline: 2px solid var(--fg);
+    outline-offset: 2px;
   }
-  .actions,
-  .form {
-    display: grid;
-    gap: var(--space-3);
-  }
-  .notice {
-    padding: var(--space-3) var(--space-4);
-    border: 1px solid var(--fg);
+  .danger-zone {
+    border-style: dashed;
+    border-color: var(--line-strong);
   }
 </style>

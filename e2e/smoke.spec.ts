@@ -33,7 +33,9 @@ test('semua layar ter-render tanpa error dan tanpa pelanggaran CSP', async ({ pa
   await check();
 
   await page.getByRole('button', { name: 'Pengaturan' }).click();
-  await page.getByLabel('Terang').check();
+  // Tema = kontrol tersegmentasi: klik label yang terlihat, radio di dalamnya ikut tercentang.
+  await page.getByText('Terang', { exact: true }).click();
+  await expect(page.getByLabel('Terang')).toBeChecked();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await check();
 });

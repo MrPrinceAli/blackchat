@@ -183,6 +183,17 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 - Bug ditemukan lewat screenshot: garis hitung mundur di pesan sendiri menyusut ke lebar angka. Diperbaiki
   (`SecretBubble.svelte`) dan dikunci E2E (`chat.spec.ts`, terbukti gagal tanpa perbaikan).
 
+### 2026-10-05 — UI v2 (D-021, D-022)
+- Logo baru (gelembung berpiksel dengan baris tersensor dan sudut yang melebur), favicon SVG, ikon PNG
+  (apple-touch, manifest 192/512/maskable), `site.webmanifest`, meta OG/Twitter + `og.png`.
+- Desain ulang semua layar, tetap monokrom: token `color-mix`, grid titik, crop marks, kaca buram, ikon SVG,
+  animasi halus (mati dengan `prefers-reduced-motion`). Welcome memuat pratinjau dengan `BurnFx` asli; Masuk/Daftar
+  memakai tile logo, meter kekuatan password, dan tautan pindah layar; Home punya kartu identitas dengan bar umur
+  akun 72 jam; Chat punya header berstatus, catatan enkripsi, dan composer dock; Verify/Settings memakai kartu.
+- Bug ditemukan dan diperbaiki: `scroll` dihitung sebagai aktivitas sesi, sehingga scroll otomatis bisa menunda
+  kunci 10 menit (D-022). Dikunci E2E dan dibuktikan dengan uji mutasi.
+- JS utama 57 KB gzip, CSS 6 KB gzip (batas PRD §10.7: 100 KB).
+
 ## Domain
 
 **Dipilih: `https://blackchat-id.vercel.app`** (nama project Vercel `blackchat-id`; 2026-10-05). `blackchat.vercel.app`,

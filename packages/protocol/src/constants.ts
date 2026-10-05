@@ -240,7 +240,9 @@ export const SESSION = {
   IDB_NAME: 'blackchat',
   IDB_STORE: 'sessions',
   BROADCAST_CHANNEL: 'bc-tab',
-  ACTIVITY_EVENTS: ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'],
+  // Tanpa 'scroll': scroll otomatis (pesan masuk, perubahan tata letak) bukan aktivitas pengguna (D-022).
+  // Scroll oleh pengguna selalu diawali wheel, touchstart, keydown, atau pointerdown (scrollbar).
+  ACTIVITY_EVENTS: ['pointerdown', 'keydown', 'wheel', 'touchstart'],
 } as const;
 
 /** WebSocket — PRD §13.1. */

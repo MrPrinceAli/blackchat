@@ -1,4 +1,6 @@
 <script lang="ts">
+  import AuthHeader from '../components/AuthHeader.svelte';
+  import LogoTile from '../components/LogoTile.svelte';
   import { AccountError, checkUsername, register } from '../lib/account';
   import { navigate } from '../lib/router.svelte';
   import { strings } from '../lib/strings';
@@ -9,6 +11,10 @@
   let availability = $state<'available' | 'taken' | 'invalid' | null>(null);
   let busy = $state(false);
   let error = $state<string | null>(null);
+  // Meter kekuatan visual (bukan validasi): panjang ≥ 10 wajib, makin panjang makin kuat.
+  const strength = $derived(
+    password.length >= 20 ? 3 : password.length >= 14 ? 2 : password.length >= 10 ? 1 : 0,
+  );
 
   // Validasi username langsung (PRD §10.3), dengan jeda agar tidak membebani rate limit lookup.
   $effect(() => {
@@ -57,71 +63,122 @@
   }
 </script>
 
-<main class="screen">
-  <button
-    class="back"
-    type="button"
-    onclick={() => navigate('welcome')}
-    aria-label={strings.chat.back}
-    disabled={busy}>←</button
-  >
-  <h1>{strings.register.title}</h1>
-  <form class="form" onsubmit={submit} novalidate>
-    <div class="field">
-      <label for="reg-username">{strings.register.username}</label>
-      <input
-        id="reg-username"
-        autocomplete="off"
-        autocapitalize="none"
-        spellcheck="false"
-        maxlength="20"
-        bind:value={username}
-        aria-describedby="reg-username-status"
-        disabled={busy}
-      />
-      <span class="hint" id="reg-username-status" role="status">
-        {#if availability === 'available'}{strings.register.available}
-        {:else if availability === 'taken'}{strings.register.taken}
-        {:else if availability === 'invalid'}{strings.register.errors.usernameFormat}
-        {:else}{strings.register.usernameHint}{/if}
-      </span>
+<main class="screen auth">
+  <AuthHeader onBack={() => navigate('welcome')} disabled={busy} />
+  <div class="auth-body">
+    <div class="auth-intro">
+      <LogoTile />
+      <h1>{strings.register.title}</h1>
+      <p class="subtitle">{strings.register.subtitle}</p>
     </div>
-    <div class="field">
-      <label for="reg-password">{strings.register.password}</label>
-      <input
-        id="reg-password"
-        type="password"
-        autocomplete="new-password"
-        bind:value={password}
-        disabled={busy}
-      />
-      <span class="hint">{strings.register.passwordHint}</span>
-    </div>
-    <div class="field">
-      <label for="reg-repeat">{strings.register.repeatPassword}</label>
-      <input
-        id="reg-repeat"
-        type="password"
-        autocomplete="new-password"
-        bind:value={repeat}
-        disabled={busy}
-      />
-    </div>
-    {#if error}<p class="error" role="alert">{error}</p>{/if}
-    <button class="button primary" type="submit" disabled={busy}>
-      {busy ? strings.register.securing : strings.register.submit}
-    </button>
-    <p class="hint">{strings.register.warning}</p>
-  </form>
+    <form class="form-card" onsubmit={submit} novalidate>
+      <div class="field">
+        <label for="reg-username">{strings.register.username}</label>
+        <input
+          id="reg-username"
+          autocomplete="off"
+          autocapitalize="none"
+          spellcheck="false"
+          maxlength="20"
+          bind:value={username}
+          aria-describedby="reg-username-status"
+          disabled={busy}
+        />
+        <span
+          class="hint status"
+          class:ok={availability === 'available'}
+          class:bad={availability === 'taken' || availability === 'invalid'}
+          id="reg-username-status"
+          role="status"
+        >
+          {#if availability === 'available'}{strings.register.available}
+          {:else if availability === 'taken'}{strings.register.taken}
+          {:else if availability === 'invalid'}{strings.register.errors.usernameFormat}
+          {:else}{strings.register.usernameHint}{/if}
+        </span>
+      </div>
+      <div class="field">
+        <label for="reg-password">{strings.register.password}</label>
+        <input
+          id="reg-password"
+          type="password"
+          autocomplete="new-password"
+          bind:value={password}
+          disabled={busy}
+        />
+        <div class="meter" aria-hidden="true" data-level={password ? strength : -1}>
+          <i></i><i></i><i></i>
+        </div>
+        <span class="hint"
+          >{password ? strings.register.strength(strength) : strings.register.passwordHint}</span
+        >
+      </div>
+      <div class="field">
+        <label for="reg-repeat">{strings.register.repeatPassword}</label>
+        <input
+          id="reg-repeat"
+          type="password"
+          autocomplete="new-password"
+          bind:value={repeat}
+          disabled={busy}
+        />
+      </div>
+      {#if error}<p class="error" role="alert">{error}</p>{/if}
+      <button class="button primary" class:busy type="submit" disabled={busy}>
+        {busy ? strings.register.securing : strings.register.submit}
+      </button>
+      <p class="hint warning">{strings.register.warning}</p>
+    </form>
+    <p class="switch">
+      {strings.register.haveAccount}
+      <button class="link-button" type="button" onclick={() => navigate('login')} disabled={busy}
+        >{strings.register.toLogin}</button
+      >
+    </p>
+  </div>
 </main>
 
 <style>
-  .form {
-    display: grid;
-    gap: var(--space-4);
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
   }
-  .error {
-    padding: var(--space-3) var(--space-4);
+  .status.ok,
+  .status.bad {
+    color: var(--fg);
+  }
+  .status.ok::before,
+  .status.bad::before {
+    content: '';
+    flex: none;
+    width: 7px;
+    height: 7px;
     border: 1px solid var(--fg);
+  }
+  .status.ok::before {
+    background: var(--fg);
+  }
+  .meter {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+  }
+  .meter i {
+    height: 3px;
+    background: var(--line);
+    transition: background-color var(--dur-2) var(--ease-out);
+  }
+  .meter[data-level='0'] i:nth-child(-n + 1) {
+    background: var(--line-strong);
+  }
+  .meter[data-level='1'] i:nth-child(-n + 1),
+  .meter[data-level='2'] i:nth-child(-n + 2),
+  .meter[data-level='3'] i {
+    background: var(--fg);
+  }
+  .warning {
+    padding-top: var(--space-4);
+    border-top: 1px dashed var(--line);
   }
 </style>
