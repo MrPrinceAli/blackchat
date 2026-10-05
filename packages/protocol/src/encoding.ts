@@ -11,7 +11,8 @@ const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
 export function utf8Encode(text: string): Uint8Array<ArrayBuffer> {
-  return textEncoder.encode(text);
+  // TextEncoder selalu menghasilkan buffer ArrayBuffer biasa; sebagian definisi tipe (workers-types) menulisnya generik.
+  return textEncoder.encode(text) as Uint8Array<ArrayBuffer>;
 }
 
 /** Menolak UTF-8 tidak valid. */

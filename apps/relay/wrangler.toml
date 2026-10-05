@@ -1,6 +1,7 @@
 name = "blackchat-relay"
 main = "src/index.ts"
-compatibility_date = "2026-10-01"
+# Batas runtime workerd di @cloudflare/vitest-pool-workers 0.22 (D-012). Naikkan bersama paket itu.
+compatibility_date = "2026-08-22"
 send_metrics = false
 
 # Kode khusus test dibuang dari bundle produksi (D-006).

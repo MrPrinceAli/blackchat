@@ -92,3 +92,16 @@ Safety number tetap persis PRD §4.4 (tanpa label).
 - **`decryptMessage` menerapkan aturan PRD §4.7** di dalam satu fungsi: pengirim yang diharapkan (lawan untuk pesan masuk, diri sendiri untuk pesan sendiri), `roomId`/`msgId` di Inner harus sama dengan record. Pemeriksaan ini tetap perlu walaupun AAD sudah mengikat keduanya, karena pengirim curang bisa membungkus ulang Inner sah dari room lain dengan AAD yang benar (ada test-nya).
 - **Vektor room** (`packages/crypto/test/vectors-room.json`) dibuat oleh generator independen dan menjadi acuan relay di W5 untuk memverifikasi bukti member dengan `@noble/hashes` (D-007).
 **Konsekuensi:** Lima pemeriksaan keamanan utama diuji dengan mutasi manual (pemeriksaan dihapus → test gagal): pengirim Inner, roomId/msgId Inner, hash gambar, userId header, dan pemisahan inboxRoomId (D-001).
+
+## D-012 — Detail relay akun & limiter (2026-10-05)
+**Konteks:** Implementasi W4 menemukan beberapa hal yang tidak diatur PRD, plus satu batasan toolchain.
+**Keputusan:**
+- **Kunci limiter diturunkan dari `SALT_SECRET`**, bukan dari salt acak di memori seperti tertulis di D-003: `hex(BLAKE2b-256(key=SALT_SECRET, "bc-limit-ip-v1"|"bc-limit-user-v1" || nilai))`. Cloudflare menjalankan banyak isolate; salt acak per isolate membuat IP yang sama masuk ke penghitung berbeda dan rate limit bisa dilewati. Dengan kunci rahasia yang stabil, IP/username tetap tidak pernah disimpan dan tidak bisa dibalik tanpa `SALT_SECRET`.
+- **Riwayat gagal login** per username dilupakan setelah 1 jam tanpa percobaan baru (memori DO tetap terbatas). Jeda tetap 30 dtk × 2^(n−5), maks 15 menit.
+- **`GET /v1/account/salt`** memakai kuota lookup (30/menit/IP), bukan kuota login, supaya satu percobaan login tidak terhitung dua kali.
+- **HTTP:** request dengan `Origin` selain `ALLOWED_ORIGIN` ditolak 403 sebelum diproses; request tanpa `Origin` (bukan browser) diizinkan. Body wajib `Content-Type: application/json` (memaksa preflight CORS) dan ≤ 64 KiB. Kode error → status: invalid 400, unauthorized/bad_proof 401, forbidden 403, not_found 404, conflict/replay/room_full/quota_exceeded 409, expired 410, rate_limited 429 (+`Retry-After`), internal 500. Semua kegagalan tanda tangan (register, update) → 401.
+- **Update bertanda tangan** (`contacts`, `password`, `DELETE`) membalas `{}`; `UPDATE … WHERE seq = <lama>` mencegah dua update bersamaan dengan seq sama.
+- **`SALT_SECRET` wajib 32 byte hex**; selain itu relay membalas 500 untuk semua request yang memerlukannya (gagal tertutup).
+- **`compatibility_date` = 2026-08-22** (PRD §11.2: 2026-10-01). Runtime workerd di `@cloudflare/vitest-pool-workers` 0.22 (versi terbaru saat ini) hanya mendukung sampai 2026-08-22. Tanggal yang sama dipakai untuk test dan produksi agar yang diuji sama dengan yang di-deploy. Naikkan bersama paket itu.
+- **Route test** (`/__test/clock`, `/__test/cron`) ada di `src/test-routes.ts` dan hanya dimuat saat `__BC_TEST__`. `tooling/check-relay-bundle.js` (dijalankan di CI) memastikan bundle produksi tidak memuatnya; dibuktikan dengan kontrol negatif (bundle env test ditolak).
+**Konsekuensi:** D-003 dikoreksi oleh poin pertama. Test relay berjalan di workerd lewat `@cloudflare/vitest-pool-workers`.
