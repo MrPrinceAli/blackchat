@@ -13,10 +13,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r typecheck && tsc -p tsconfig.e2e.json",
-    "test": "pnpm -r test",
+    "test": "pnpm -r test && node --test tooling/*.test.js",
     "test:relay": "pnpm --filter @blackchat/relay test",
     "test:e2e": "playwright test",
-    "check:inline": "node tooling/check-inline.js apps/web/dist"
+    "check:inline": "node tooling/check-inline.js apps/web/dist",
+    "configure-domains": "node tooling/configure-domains.js"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

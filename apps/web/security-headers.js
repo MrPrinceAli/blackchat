@@ -3,7 +3,8 @@
 import { readFileSync } from 'node:fs';
 
 const vercel = JSON.parse(readFileSync(new URL('./vercel.json', import.meta.url), 'utf8'));
-const PLACEHOLDER = 'wss://RELAY_HOST https://RELAY_HOST';
+// Bagian relay di connect-src: placeholder RELAY_HOST atau host produksi hasil tooling/configure-domains.js.
+const RELAY_SOURCES = /wss:\/\/[^\s;]+ https:\/\/[^\s;]+/;
 
 /** @param {string} relayUrl contoh: http://localhost:8787 atau https://relay.example */
 export function securityHeaders(relayUrl) {
@@ -16,9 +17,9 @@ export function securityHeaders(relayUrl) {
     if (key === 'Strict-Transport-Security' && !secure) continue;
     let v = value;
     if (key === 'Content-Security-Policy') {
-      if (!v.includes(PLACEHOLDER))
-        throw new Error('CSP di vercel.json tidak memuat placeholder RELAY_HOST');
-      v = v.replace(PLACEHOLDER, connect);
+      if (!RELAY_SOURCES.test(v))
+        throw new Error('CSP di vercel.json tidak memuat sumber relay di connect-src');
+      v = v.replace(RELAY_SOURCES, connect);
       // Server lokal http tidak bisa di-upgrade ke https.
       if (!secure) v = v.replace('; upgrade-insecure-requests', '');
     }
