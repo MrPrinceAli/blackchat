@@ -190,7 +190,7 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 
 - [x] `ALLOWED_ORIGIN` produksi relay = `https://blackchat-id.vercel.app` (`pnpm configure-domains --web …`).
 - [x] D1 produksi `blackchat` dibuat (region APAC), `database_id` diisi, migrasi `0001_init.sql` diterapkan `--remote`.
-- [x] Relay live di `https://blackchat-relay.fachrulanf.workers.dev` (deploy pertama lewat `deploy-relay.yml`,
+- [x] Relay live di `https://blackchat-relay.blackchat-id.workers.dev` (deploy pertama lewat `deploy-relay.yml`,
       `SALT_SECRET` dibuat otomatis). Host relay diisi ke CSP `apps/web/vercel.json`.
 - [x] Web live di `https://blackchat-id.vercel.app` (project Vercel `blackchat-id`, team Viclatess, Root Directory
       `apps/web`, Node 22.x, env `VITE_RELAY_URL` & `ENABLE_EXPERIMENTAL_COREPACK`; terhubung ke repo GitHub).
