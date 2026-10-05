@@ -5,23 +5,32 @@ Relay (Cloudflare) dan web (Vercel) di-deploy terpisah. Langkah di bawah hanya p
 | Bagian | Alamat | Status konfigurasi |
 |---|---|---|
 | Web | `https://blackchat-id.vercel.app` | `ALLOWED_ORIGIN` relay sudah diisi |
-| Relay | `https://blackchat-relay.<subdomain-akun>.workers.dev` | Diisi setelah deploy pertama (langkah 3) |
+| Relay | `https://blackchat-relay.<subdomain-akun>.workers.dev` | D1 siap; host relay diisi setelah deploy pertama (langkah 3) |
 
 ## 1. Relay (Cloudflare)
+
+Sudah dilakukan: D1 `blackchat` (APAC) dibuat, `database_id` diisi, migrasi diterapkan.
+
+Sisanya lewat browser saja:
+
+1. Cloudflare → **Workers & Pages**: pastikan akun sudah punya subdomain `*.workers.dev` (panel kanan, "Subdomain"). Jika belum, daftarkan satu.
+2. GitHub → Settings → Secrets and variables → Actions → **Secrets**:
+   - `CLOUDFLARE_API_TOKEN`: token template "Edit Cloudflare Workers" + izin **D1 Edit**.
+   - `CLOUDFLARE_ACCOUNT_ID`: Account ID Cloudflare (Workers & Pages → panel kanan).
+3. Merge PR yang mengubah `apps/relay/**`, atau GitHub → Actions → **deploy-relay** → **Run workflow**. Workflow menjalankan test relay, migrasi D1, lalu deploy. Pada deploy pertama, `SALT_SECRET` dibuat acak di runner dan langsung dikirim ke Cloudflare (tidak pernah ditampilkan atau disimpan di GitHub). URL relay tampil di log langkah "Deploy Worker".
+
+<details>
+<summary>Alternatif lewat terminal</summary>
 
 ```bash
 cd apps/relay
 pnpm exec wrangler login
-pnpm exec wrangler d1 create blackchat               # salin database_id ke wrangler.toml ([[d1_databases]] tingkat atas)
+pnpm exec wrangler d1 migrations apply DB --remote --env=""
 pnpm exec wrangler secret put SALT_SECRET --env=""   # isi: openssl rand -hex 32
+pnpm exec wrangler deploy --env=""
 ```
 
-Di GitHub → Settings → Secrets and variables → Actions:
-
-- **Secrets:** `CLOUDFLARE_API_TOKEN` (template "Edit Cloudflare Workers" + izin D1 Edit), `CLOUDFLARE_ACCOUNT_ID`.
-- **Variables:** `VITE_RELAY_URL` = URL relay (dipakai `release-hash.yml`).
-
-Commit `database_id` lewat PR lalu merge: `deploy-relay.yml` menjalankan test relay, migrasi D1 produksi, dan `wrangler deploy`. URL relay tampil di log job tersebut.
+</details>
 
 ## 2. Web (Vercel)
 
