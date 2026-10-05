@@ -44,7 +44,9 @@ export interface ConnectionOptions {
 }
 
 type RequestType = RequestFrame['t'];
-type FrameOf<T extends RequestType> = Omit<Extract<RequestFrame, { t: T }>, 'reqId'>;
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+/** Frame request tanpa reqId (diisi otomatis). */
+export type RequestInput = DistributiveOmit<RequestFrame, 'reqId'>;
 type DataOf<T extends RequestType> = T extends keyof ResultDataMap ? ResultDataMap[T] : never;
 
 interface Pending {
@@ -91,7 +93,9 @@ export class RelayConnection {
     return this.status;
   }
 
-  request<T extends RequestType>(frame: FrameOf<T>, t: T = frame.t as T): Promise<DataOf<T>> {
+  /** Jenis frame (`t`) menentukan tipe data result-nya. */
+  request<F extends RequestInput>(frame: F): Promise<DataOf<F['t']>> {
+    const t = frame.t;
     if (this.status !== 'ready' || !this.socket) return Promise.reject(new RequestError('offline'));
     const reqId = (this.reqId = (this.reqId % 2_000_000_000) + 1);
     const socket = this.socket;

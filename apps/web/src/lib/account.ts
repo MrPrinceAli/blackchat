@@ -26,6 +26,7 @@ import {
 } from './session';
 import { strings } from './strings';
 import { RelayConnection } from './ws';
+import type { EventFrame } from '@blackchat/protocol';
 
 export type AccountErrorCode =
   | 'username_format'
@@ -61,7 +62,60 @@ interface Active {
 }
 
 let active: Active | null = null;
+/** Room yang dibuka ulang setelah refresh (PRD §15.2: refresh membuka room yang benar). */
+let resumeRoom: string | null = null;
 let presence: ReturnType<typeof broadcastPresence> | undefined;
+
+// ================================================================ kait untuk modul chat (W8)
+
+/** Sesi yang sedang aktif, untuk modul room/pesan. Kunci rahasia tidak pernah keluar dari objek ini. */
+export interface ActiveSession {
+  crypto: CryptoModule;
+  identity: Identity;
+  username: string;
+  userId: string;
+  /** Perkiraan waktu hangus akun sendiri (jam perangkat). */
+  expiresAtLocal: number;
+  connection: RelayConnection;
+}
+
+type Hooks = {
+  ready: Set<(resumed: { lastRoomId: string | null }) => void>;
+  event: Set<(event: EventFrame) => void>;
+  end: Set<() => void>;
+};
+
+const hooks: Hooks = { ready: new Set(), event: new Set(), end: new Set() };
+
+export function onSessionReady(fn: (resumed: { lastRoomId: string | null }) => void): void {
+  hooks.ready.add(fn);
+}
+export function onRelayEvent(fn: (event: EventFrame) => void): void {
+  hooks.event.add(fn);
+}
+export function onSessionEnd(fn: () => void): void {
+  hooks.end.add(fn);
+}
+
+export function activeSession(): ActiveSession | null {
+  if (!active) return null;
+  return {
+    crypto: active.crypto,
+    identity: active.identity,
+    username: active.secrets.username,
+    userId: active.secrets.userId,
+    expiresAtLocal: active.secrets.expiresAtLocal,
+    connection: active.connection,
+  };
+}
+
+/** Simpan layar & room terakhir (terenkripsi) agar refresh membuka room yang benar (PRD §5.4 langkah 4). */
+export function rememberView(screen: SessionView['screen'], lastRoomId: string | null): void {
+  if (!active) return;
+  active.view = { screen };
+  active.secrets.lastRoomId = lastRoomId;
+  void session.save(active.secrets, active.view);
+}
 
 function sessionManager(): SessionManager {
   presence ??= broadcastPresence();
@@ -292,13 +346,16 @@ function start(
     },
     onReady: (ms) => {
       app.remainingMs = ms;
-      if (active) {
-        active.secrets.expiresAtLocal = Date.now() + ms;
-        void session.save(active.secrets, active.view);
-      }
+      if (!active) return;
+      active.secrets.expiresAtLocal = Date.now() + ms;
+      void session.save(active.secrets, active.view);
+      // Room terakhir hanya dibuka ulang sekali, saat sesi dipulihkan dari refresh.
+      const lastRoomId = resumeRoom;
+      resumeRoom = null;
+      for (const fn of hooks.ready) fn({ lastRoomId });
     },
-    onEvent: () => {
-      // Event room ditangani di W8.
+    onEvent: (event) => {
+      for (const fn of hooks.event) fn(event);
     },
   });
 
@@ -317,8 +374,8 @@ function start(
   };
 
   active = { crypto: c, identity, vaultKey, secrets, view, connection, tracker, detach };
+  resumeRoom = view.screen === 'chat' ? secrets.lastRoomId : null;
   connection.start();
-  // Room (layar chat) dipulihkan mulai W8.
   navigate('home');
 }
 
@@ -328,6 +385,8 @@ export type EndReason = 'logout' | 'locked' | 'expired';
 export async function end(reason: EndReason): Promise<void> {
   const current = active;
   active = null;
+  resumeRoom = null;
+  for (const fn of hooks.end) fn();
   if (current) {
     current.detach();
     current.connection.stop();

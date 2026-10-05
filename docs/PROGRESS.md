@@ -11,8 +11,8 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
 | W4 | Relay: akun & limiter | Selesai, merged | #10 |
 | W5 | Relay: InboxDO & RoomDO | Selesai, merged | #11 |
 | W6 | Web: fondasi & UI statis | Selesai, merged | #12 |
-| W7 | Web: akun, sesi & koneksi | Selesai | branch `w7-web-sesi` |
-| W8 | Chat teks end-to-end | Belum mulai | — |
+| W7 | Web: akun, sesi & koneksi | Selesai, merged | #13 |
+| W8 | Chat teks end-to-end | Selesai | branch `w8-chat-teks` |
 | W9 | Batalkan pesan & kesepakatan timer | Belum mulai | — |
 | W10 | Gambar | Belum mulai | — |
 | W11 | Kontak, verifikasi, blokir & settings | Belum mulai | — |
@@ -125,3 +125,12 @@ Diperbarui di akhir setiap gelombang (lihat `docs/BLACKCHAT-WAVES.md`). Entri te
   test flaky karena jam runner vs jam halaman.
 - Keputusan baru: D-015.
 - Tertunda: daftar room & chat sungguhan (W8); Chat/Verify masih data contoh; hapus akun (W11).
+
+### 2026-10-05 — W8 Chat teks end-to-end
+- Selesai: daftar percakapan dari header tersegel (dengan penyaringan entri palsu/hangus), mulai percakapan
+  (lookup terverifikasi → room.init → header tersegel dua arah, kasus mulai bersamaan), kirim/terima/dekripsi
+  pesan teks, deteksi "dilihat", antrean lebur berurutan, hitung mundur dari `remainingMs` server, event
+  `new`/`opened`, koreksi penghitung belum dibuka, buka ulang room setelah refresh, layar Verify dengan safety number.
+- Test: 49 unit web (+ penyaringan entri room dengan kripto sungguhan, diuji mutasi) + 34 E2E (7 baru untuk chat
+  dengan dua pengguna, di 320 px & desktop).
+- Keputusan baru: D-016.

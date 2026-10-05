@@ -58,6 +58,10 @@ export const strings = {
     empty: 'Belum ada percakapan. Cari username untuk mulai.',
     unread: (n: number) => `${n} belum dibuka`,
     chooseTimer: 'Pilih timer lebur',
+    self: 'Itu username kamu sendiri.',
+    invalidPeer: 'Kunci akun ini tidak valid. Percakapan tidak bisa dimulai.',
+    startFailed: 'Gagal memulai percakapan. Coba lagi.',
+    loading: 'Memuat percakapan...',
   },
 
   timer: {
@@ -92,6 +96,8 @@ export const strings = {
     retract: 'Batalkan pesan',
     retractSeen: 'Sudah dilihat. Pesan tetap dihapus dari kedua sisi.',
     imageAlt: 'Gambar rahasia',
+    sendFailed: 'Pesan gagal dikirim. Coba lagi.',
+    blockSoon: 'Blokir tersedia segera.',
   },
 
   verify: {

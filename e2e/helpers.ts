@@ -1,4 +1,11 @@
-import { expect, type APIRequestContext, type Page } from '@playwright/test';
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from '@playwright/test';
 
 export const WEB = 'http://localhost:4173';
 export const RELAY = 'http://localhost:8787';
@@ -95,4 +102,56 @@ export function sessionFootprint(page: Page): Promise<{ idb: number; tab: number
     });
     return { idb, tab };
   });
+}
+
+// ================================================================ dua pengguna (W8)
+
+export interface User {
+  context: BrowserContext;
+  page: Page;
+  username: string;
+}
+
+/** Pengguna baru di browser context terpisah (cookie/storage/IndexedDB sendiri). */
+export async function newUser(
+  browser: Browser,
+  viewport?: { width: number; height: number },
+  prefix = 'u',
+): Promise<User> {
+  // Viewport mengikuti project yang sedang berjalan (320 px atau desktop).
+  const size = viewport ?? test.info().project.use.viewport ?? { width: 1280, height: 800 };
+  const context = await browser.newContext({ viewport: size, baseURL: WEB });
+  const page = await context.newPage();
+  const username = await registerViaUi(page, uniqueName(prefix));
+  return { context, page, username };
+}
+
+/** Mulai percakapan dari Home dengan timer tertentu. */
+export async function startChat(page: Page, peer: string, ttl: 3 | 5 | 7 | 10 = 3): Promise<void> {
+  await page.getByLabel('Cari username').fill(peer);
+  await page.getByLabel('Cari username').press('Enter');
+  await page.getByText(`${ttl} dtk`, { exact: true }).click();
+  await page.getByRole('button', { name: 'Mulai percakapan' }).click();
+  await expect(page.getByText(`@${peer}`, { exact: true })).toBeVisible();
+}
+
+export async function send(page: Page, text: string): Promise<void> {
+  await page.getByLabel('Tulis pesan').fill(text);
+  await page.getByRole('button', { name: 'Kirim' }).click();
+  await expect(page.getByText(text, { exact: true })).toBeVisible();
+  // Terkirim (bukan lagi "Mengirim...").
+  await expect(page.getByText('Mengirim...')).toHaveCount(0);
+}
+
+export async function openRoomWith(page: Page, peer: string): Promise<void> {
+  await page.getByRole('button', { name: new RegExp(`^@${peer}`) }).click();
+  await expect(page.getByText(`@${peer}`, { exact: true })).toBeVisible();
+}
+
+export async function logout(page: Page): Promise<void> {
+  const back = page.getByRole('button', { name: 'Kembali' });
+  if (await back.isVisible()) await back.click();
+  await page.getByRole('button', { name: 'Pengaturan' }).click();
+  await page.getByRole('button', { name: 'Keluar' }).click();
+  await expect(page.getByRole('heading', { name: 'blackchat' })).toBeVisible();
 }
